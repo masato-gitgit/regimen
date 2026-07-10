@@ -8,6 +8,7 @@ import { useToast } from '../hooks/useToast';
 
 export default function Checklist({ patients, regimens, selectedPatientId, onUpdatePatient, onSelectPatient, onNavigate }) {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
+  const todayStatus = todayStatus;
   const today = getLocalDateString(new Date());
   const { toast } = useToast();
 
@@ -51,7 +52,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
 
   // 既に完了しているか初期化
   useEffect(() => {
-    if (selectedPatient && getTodayStatus(selectedPatient) === 'completed') {
+    if (selectedPatient && todayStatus === 'completed') {
       setChecks({
         patientIdentity: true,
         labClear: true,
@@ -76,7 +77,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
         talquetamabAdmission: false,
       });
     }
-  }, [selectedPatientId, getTodayStatus(selectedPatient)]);
+  }, [selectedPatientId, todayStatus]);
 
   // 投与基準アラートの判定
   const isWbcAlert = selectedPatient && selectedPatient.wbc !== null && selectedPatient.wbc < 1500;
@@ -84,7 +85,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
   const hasAlert = isWbcAlert || isPltAlert;
 
   const toggleCheck = (key) => {
-    if (!selectedPatient || getTodayStatus(selectedPatient) === 'completed') return; // すでに完了している場合は変更不可
+    if (!selectedPatient || todayStatus === 'completed') return; // すでに完了している場合は変更不可
     setChecks(prev => ({
       ...prev,
       [key]: !prev[key]
@@ -469,7 +470,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
                 <h3 className="card-title">投与完了記録</h3>
               </div>
               <div className="card-body">
-                {getTodayStatus(selectedPatient) === 'completed' ? (
+                {todayStatus === 'completed' ? (
                   // 完了済みの場合は記録を閲覧モードで表示
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div>
@@ -563,7 +564,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
                   <button 
                     className="btn btn-warning" 
                     style={{ width: '100%', padding: '10px' }}
-                    disabled={getTodayStatus(selectedPatient) === 'completed'}
+                    disabled={todayStatus === 'completed'}
                     onClick={() => handleSaveStatus('running')}
                   >
                     <Clock size={16} />
@@ -573,14 +574,14 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
                   <button 
                     className="btn btn-secondary" 
                     style={{ width: '100%', padding: '10px', backgroundColor: allChecked ? 'var(--color-secondary)' : '#a5f3fc' }}
-                    disabled={!allChecked || getTodayStatus(selectedPatient) === 'completed'}
+                    disabled={!allChecked || todayStatus === 'completed'}
                     onClick={() => handleSaveStatus('completed')}
                   >
                     <ShieldCheck size={16} />
                     すべての安全チェック完了・投与終了
                   </button>
                   
-                  {!allChecked && getTodayStatus(selectedPatient) !== 'completed' && (
+                  {!allChecked && todayStatus !== 'completed' && (
                     <span style={{ fontSize: '0.75rem', color: 'var(--color-danger)', textAlign: 'center', fontWeight: '500' }}>
                       ※すべての安全チェック項目をチェックすると、投与終了ボタンが有効化されます。
                     </span>
