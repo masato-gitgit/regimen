@@ -9,6 +9,8 @@ import { generateSchedule } from '../utils/scheduleUtils';
 import { useToast } from '../hooks/useToast';
 import PatientSidebar from './patient/PatientSidebar';
 import PatientForm from './patient/PatientForm';
+import PatientSummary from './patient/PatientSummary';
+import LabInputPanel from './patient/LabInputPanel';
 export default function PatientList({
 
   patients,
@@ -578,135 +580,32 @@ export default function PatientList({
           /* 患者カルテ詳細 */
           <div>
             {/* 基本情報カード */}
-            <div className="card">
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 className="card-title" style={{ margin: 0 }}>
-                    <FileText size={20} />
-                    患者カルテ詳細 ({selectedPatient.name})
-                  </h3>
-                  <span className="badge badge-info">ID: {selectedPatient.id}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-outline" 
-                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    onClick={() => {
-                      setEditingPatient({
-                        id: selectedPatient.id,
-                        name: selectedPatient.name,
-                        gender: selectedPatient.gender,
-                        birthDate: selectedPatient.birthDate,
-                        height: selectedPatient.height,
-                        weight: selectedPatient.weight,
-                        creatinine: selectedPatient.creatinine || '',
-                        wbc: selectedPatient.wbc || '',
-                        plt: selectedPatient.plt || '',
-                        comments: selectedPatient.comments || '',
-                      });
-                      setIsEditing(true);
-                      setIsAdding(false);
-                    }}
-                  >
-                    編集
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-danger" 
-                    style={{ padding: '6px 12px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
-                    onClick={async () => {
-                      const ok = await confirm(
-                        '本当にこの患者データを削除しますか？',
-                        '患者データの削除',
-                        { confirmLabel: '削除する', variant: 'danger' }
-                      );
-                      if (ok) {
-                        onDeletePatient(selectedPatient.id);
-                      }
-                    }}
-                  >
-                    <Trash2 size={14} />
-                    削除
-                  </button>
-                </div>
-              </div>
+            <PatientSummary
+              patient={selectedPatient}
+              onEditClick={() => {
+                setIsEditing(true);
+                setIsAdding(false);
+              }}
+              onDeleteClick={async () => {
+                const ok = await confirm(
+                  '本当にこの患者データを削除しますか？',
+                  '患者データの削除',
+                  { confirmLabel: '削除する', variant: 'danger' }
+                );
+                if (ok) {
+                  onDeletePatient(selectedPatient.id);
+                }
+              }}
+            />
+            
+            {/* 検査データ入力パネル */}
+            <div className="card" style={{ marginTop: '20px' }}>
               <div className="card-body">
-                <div className="grid-3" style={{ marginBottom: '20px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>基本情報</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '700', marginTop: '4px' }}>
-                      {selectedPatient.gender === 'male' ? '男性' : '女性'} / {calcAge(selectedPatient.birthDate)}歳
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>({selectedPatient.birthDate} 生まれ)</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>体格・BSA</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '700', marginTop: '4px' }}>
-                      {selectedPatient.height} cm / {selectedPatient.weight} kg
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-secondary)', fontWeight: '600' }}>
-                      体表面積 (BSA): {selectedPatient.bsa} m²
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>腎機能 (eGFR)</div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '700', marginTop: '4px' }}>
-                      {selectedPatient.creatinine ? (
-                        <span>
-                          {calculateEGFR(selectedPatient.creatinine, selectedPatient.gender, selectedPatient.birthDate)} mL/min/1.73m²
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--color-text-muted)' }}>未測定</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                      クレアチニン: {selectedPatient.creatinine || '---'} mg/dL
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '20px' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '10px', color: 'var(--color-primary)' }}>直近の血液検査データ入力</h4>
-                  <div className="form-row" style={{ alignItems: 'flex-end' }}>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">血清クレアチニン (mg/dL)</label>
-                      <input 
-                        type="number" 
-                        step="0.01" 
-                        className="form-control" 
-                        placeholder={selectedPatient.creatinine || '例: 0.8'}
-                        value={labInput.creatinine}
-                        onChange={e => setLabInput({...labInput, creatinine: e.target.value})}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">WBC (/μL)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        placeholder={selectedPatient.wbc || '例: 4000'}
-                        value={labInput.wbc}
-                        onChange={e => setLabInput({...labInput, wbc: e.target.value})}
-                      />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="form-label">PLT (万/μL)</label>
-                      <input 
-                        type="number" 
-                        className="form-control" 
-                        placeholder={selectedPatient.plt || '例: 20'}
-                        value={labInput.plt}
-                        onChange={e => setLabInput({...labInput, plt: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <button className="btn btn-secondary" onClick={handleSaveLabs} style={{ width: '100%' }}>
-                        検査値を保存
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <LabInputPanel 
+                  key={selectedPatient.id} 
+                  patient={selectedPatient} 
+                  onUpdatePatient={onUpdatePatient} 
+                />
               </div>
             </div>
 
