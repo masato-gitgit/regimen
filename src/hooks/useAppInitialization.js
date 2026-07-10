@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { safeGetLocalStorage, safeSetLocalStorage } from '../utils/storageUtils';
+import { safeGetLocalStorage, safeSetLocalStorage, safeRemoveLocalStorage } from '../utils/storageUtils';
 import { runMigrations } from '../utils/migrations';
 
 const DUMMY_PATIENT_IDS = [
@@ -151,7 +151,7 @@ export const useAppInitialization = () => {
 
   useEffect(() => {
     const errors = [];
-    const storedMigVer = parseInt(localStorage.getItem('onco_migration_version') || '0', 10);
+    const storedMigVer = parseInt(safeGetLocalStorage('onco_migration_version') || '0', 10);
 
     const storedRegimens = safeGetLocalStorage('onco_regimens');
     const storedPatients = safeGetLocalStorage('onco_patients');
@@ -201,7 +201,7 @@ export const useAppInitialization = () => {
     setDrugsMaster(currentDrugs);
     
     // 旧仕様のフラグのクリーンアップ
-    localStorage.removeItem('onco_dummies_added_v2');
+    safeRemoveLocalStorage('onco_dummies_added_v2');
     
     if (errors.length > 0) setStorageErrors(errors);
     setIsInitialized(true);

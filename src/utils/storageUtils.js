@@ -85,3 +85,15 @@ export const safeSetLocalStorage = (key, value) => {
     }
   }
 };
+
+/**
+ * localStorage から安全にデータを削除する。
+ */
+export const safeRemoveLocalStorage = (key) => {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    console.error(`Failed to remove localStorage key: ${key}`, e);
+  }
+};
+
