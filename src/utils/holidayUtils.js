@@ -30,7 +30,7 @@ export const getJapaneseHoliday = (date) => {
   if (m === 12 && d >= 29 && d <= 31) return '年末年始休暇';
 
   // 固定の祝日
-  const checkHolidayOnly = (yy, mm, dd, w) => {
+  const checkHolidayOnly = (yy, mm, dd) => {
     const vn = getVernalEquinox(yy);
     const an = getAutumnalEquinox(yy);
     const getMonday = (year, month, weekNumber) => {
@@ -104,9 +104,9 @@ export const getJapaneseHoliday = (date) => {
     for (let offset = 1; offset <= 3; offset++) {
       const prevDate = new Date(y, m - 1, d - offset);
       if (prevDate.getDay() === 0) {
-        if (checkHolidayOnly(prevDate.getFullYear(), prevDate.getMonth() + 1, prevDate.getDate(), prevDate.getDay())) return '振替休日';
+        if (checkHolidayOnly(prevDate.getFullYear(), prevDate.getMonth() + 1, prevDate.getDate())) return '振替休日';
         break; // 日曜まで遡って祝日じゃなければ終了
-      } else if (!checkHolidayOnly(prevDate.getFullYear(), prevDate.getMonth() + 1, prevDate.getDate(), prevDate.getDay())) {
+      } else if (!checkHolidayOnly(prevDate.getFullYear(), prevDate.getMonth() + 1, prevDate.getDate())) {
         break; // 連続する祝日が途切れたら終了
       }
     }
@@ -116,8 +116,8 @@ export const getJapaneseHoliday = (date) => {
   if (date.getDay() !== 0 && date.getDay() !== 6) { // 日曜以外、土曜以外
     const prevDate = new Date(y, m - 1, d - 1);
     const nextDate = new Date(y, m - 1, d + 1);
-    if (checkHolidayOnly(prevDate.getFullYear(), prevDate.getMonth() + 1, prevDate.getDate(), prevDate.getDay()) && 
-        checkHolidayOnly(nextDate.getFullYear(), nextDate.getMonth() + 1, nextDate.getDate(), nextDate.getDay())) {
+    if (checkHolidayOnly(prevDate.getFullYear(), prevDate.getMonth() + 1, prevDate.getDate()) && 
+        checkHolidayOnly(nextDate.getFullYear(), nextDate.getMonth() + 1, nextDate.getDate())) {
       return '国民の休日';
     }
   }
