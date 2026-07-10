@@ -532,7 +532,6 @@ export default function PatientList({
       bsa: bsa,
       activeRegimen: null,
       schedule: [],
-      todayStatus: 'pending'
     });
     
     setIsAdding(false);
@@ -614,7 +613,6 @@ export default function PatientList({
         drugs: JSON.parse(JSON.stringify(reg.drugs))
       },
       schedule,
-      todayStatus: 'pending'
     };
 
     onUpdatePatient(updatedPatient);
@@ -635,7 +633,6 @@ export default function PatientList({
         ...selectedPatient,
         activeRegimen: null,
         schedule: [],
-        todayStatus: 'none'
       };
       onUpdatePatient(updatedPatient);
       setIsChangingRegimen(false);
@@ -2163,7 +2160,6 @@ export default function PatientList({
                                         onUpdatePatient({ 
                                           ...selectedPatient, 
                                           schedule: updatedSchedule,
-                                          ...(isToday ? { todayStatus: 'completed' } : {})
                                         });
                                         toast('投与を実施済み（完了）に設定しました。');
                                         setSelectedEvent(null);
@@ -2383,7 +2379,6 @@ export default function PatientList({
                                         onUpdatePatient({ 
                                           ...selectedPatient, 
                                           schedule: updatedSchedule,
-                                          ...(isToday ? { todayStatus: 'pending' } : {})
                                         });
                                         toast('投与予定（未実施）に戻しました。');
                                         setSelectedEvent(null);

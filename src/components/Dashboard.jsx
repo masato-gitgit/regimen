@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, Users, AlertTriangle, CheckCircle, Clock, ArrowRight } from 'lucide-react';
 import { calcAndFormatDoseStr } from '../utils/doseUtils';
 import { getLocalDateString } from '../utils/dateUtils';
+import { getTodayStatus } from '../utils/scheduleUtils';
 
 export default function Dashboard({ patients, regimens, alerts, onNavigate, onSelectPatient }) {
   const today = getLocalDateString(new Date());
@@ -17,7 +18,7 @@ export default function Dashboard({ patients, regimens, alerts, onNavigate, onSe
     return !!todaySchedule;
   });
 
-  const completedCount = todayPatients.filter(p => p.todayStatus === 'completed').length;
+  const completedCount = todayPatients.filter(p => getTodayStatus(p) === 'completed').length;
   const totalCount = todayPatients.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -174,11 +175,11 @@ export default function Dashboard({ patients, regimens, alerts, onNavigate, onSe
                           </div>
                         </td>
                         <td>
-                          {patient.todayStatus === 'completed' ? (
+                          {getTodayStatus(patient) === 'completed' ? (
                             <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <CheckCircle size={12} /> 投与完了
                             </span>
-                          ) : patient.todayStatus === 'running' ? (
+                          ) : getTodayStatus(patient) === 'running' ? (
                             <span className="badge badge-warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <Clock size={12} /> 投与中
                             </span>

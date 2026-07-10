@@ -81,3 +81,14 @@ export const generateSchedule = (regimen, startDate, startCycle = 1, startDay = 
 
   return { schedule, targetCycles };
 };
+
+/**
+ * 患者の「今日の投与ステータス」を schedule から導出する。
+ * @returns {'none'|'pending'|'running'|'completed'|'provisional'} 
+ *   今日が投与日でなければ 'none'
+ */
+export const getTodayStatus = (patient, todayStr = getLocalDateString()) => {
+  if (!patient || !patient.schedule) return 'none';
+  const item = patient.schedule.find(s => s.date === todayStr && s.isDrugDay);
+  return item ? (item.status || 'pending') : 'none';
+};
