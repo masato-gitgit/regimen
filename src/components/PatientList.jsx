@@ -269,7 +269,8 @@ export default function PatientList({
         dayCounter++;
         
         let isDrugDay = false;
-        if (regId === 'R014') {
+        const isWeekly = reg.drugs?.some(d => d.applicableDays?.includes(22));
+        if (isWeekly) {
           if (cycle === 1) isDrugDay = [1, 4, 8, 15, 22].includes(day);
           else isDrugDay = [1, 8, 15, 22].includes(day);
         } else {
@@ -1475,6 +1476,9 @@ export default function PatientList({
                           {/* ルンスミオ効果評価入力セクション */}
                           {(() => {
                             const isLunsumioMonotherapy = reg && (
+                              reg.protocolType === PROTOCOL_TYPES.LUNSUMIO_SC ||
+                              reg.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV ||
+                              // V4移行完了後に削除予定のレガシー判定
                               ['R012', 'R013', 'R9045', 'R6365'].includes(reg.id) ||
                               (
                                 (reg.name?.includes('ルンスミオ') || reg.name?.includes('モスネツズマブ')) &&

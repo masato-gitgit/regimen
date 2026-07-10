@@ -14,6 +14,7 @@ export const generateSchedule = (regimen, startDate, startCycle = 1, startDay = 
   const isLunsumioMonotherapy = (
     regimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_SC ||
     regimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV ||
+    // V4移行完了後に削除予定のレガシーID判定
     ['R012', 'R013', 'R9045', 'R6365'].includes(regimen.id) ||
     (
       (regimen.name?.includes('ルンスミオ') || regimen.name?.includes('モスネツズマブ')) &&
