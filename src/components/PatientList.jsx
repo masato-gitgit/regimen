@@ -8,6 +8,7 @@ import { getJapaneseHoliday } from '../utils/holidayUtils';
 import { generateSchedule } from '../utils/scheduleUtils';
 import { useToast } from '../hooks/useToast';
 import PatientSidebar from './patient/PatientSidebar';
+import PatientForm from './patient/PatientForm';
 export default function PatientList({
 
   patients,
@@ -549,305 +550,30 @@ export default function PatientList({
       {/* 右側メインパネル */}
       <div style={{ height: 'calc(100vh - 150px)', overflowY: 'auto' }}>
         {isAdding ? (
-          /* 患者の新規登録 */
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">
-                <UserPlus size={20} />
-                新規患者登録
-              </h3>
-            </div>
-            <div className="card-body">
-              <form onSubmit={handleSavePatient}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">患者ID *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      required
-                      value={newPatient.id}
-                      onChange={(e) => setNewPatient({ ...newPatient, id: e.target.value })}
-                      placeholder="例: P004"
-                      style={{ borderColor: patients.some((pt) => pt.id === newPatient.id) ? 'var(--color-danger)' : '' }}
-                    />
-                    {newPatient.id && patients.some((pt) => pt.id === newPatient.id) && (
-                      <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem', marginTop: '4px' }}>
-                        この患者IDはすでに登録されています。
-                      </div>
-                    )}
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">氏名 *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      required
-                      value={newPatient.name}
-                      onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                      placeholder="例: 山田 花子"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">性別 *</label>
-                    <select
-                      className="form-control"
-                      value={newPatient.gender}
-                      onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
-                    >
-                      <option value="male">男性</option>
-                      <option value="female">女性</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">生年月日 *</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      required
-                      value={newPatient.birthDate}
-                      onChange={(e) => setNewPatient({ ...newPatient, birthDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">身長 (cm) *</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="form-control"
-                      required
-                      value={newPatient.height}
-                      onChange={(e) => setNewPatient({ ...newPatient, height: e.target.value })}
-                      placeholder="例: 165"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">体重 (kg) *</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      className="form-control"
-                      required
-                      value={newPatient.weight}
-                      onChange={(e) => setNewPatient({ ...newPatient, weight: e.target.value })}
-                      placeholder="例: 55"
-                    />
-                  </div>
-                </div>
-
-                <h4 style={{ margin: '20px 0 10px', fontSize: '0.95rem', color: 'var(--color-primary)', borderBottom: '1px solid var(--color-border)', paddingBottom: '5px' }}>
-                  初期検査データ（任意）
-                </h4>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">血清クレアチニン (mg/dL)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-control"
-                      value={newPatient.creatinine}
-                      onChange={(e) => setNewPatient({ ...newPatient, creatinine: e.target.value })}
-                      placeholder="例: 0.85"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">白血球数 WBC (/μL)</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={newPatient.wbc}
-                      onChange={(e) => setNewPatient({ ...newPatient, wbc: e.target.value })}
-                      placeholder="例: 4500"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">血小板数 PLT (万/μL)</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      value={newPatient.plt}
-                      onChange={(e) => setNewPatient({ ...newPatient, plt: e.target.value })}
-                      placeholder="例: 22"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginTop: '15px' }}>
-                  <label className="form-label">カルテコメント・特記事項（任意）</label>
-                  <textarea
-                    className="form-control"
-                    rows="3"
-                    value={newPatient.comments}
-                    onChange={(e) => setNewPatient({ ...newPatient, comments: e.target.value })}
-                    placeholder="患者の特記事項、経過、アレルギー、併用薬などを記入してください。"
-                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                  <button type="button" className="btn btn-outline" onClick={() => setIsAdding(false)}>
-                    キャンセル
-                  </button>
-                  <button type="submit" className="btn btn-secondary">
-                    登録を完了する
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        ) : isEditing && editingPatient ? (
-          /* 患者情報修正 */
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">
-                <UserPlus size={20} />
-                患者情報修正
-              </h3>
-              <span className="badge badge-info">ID: {editingPatient.id}</span>
-            </div>
-            <div className="card-body">
-              <form onSubmit={handleEditSubmit}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">患者ID</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      readOnly 
-                      value={editingPatient.id}
-                      style={{ backgroundColor: '#e2e8f0', cursor: 'not-allowed' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">氏名 *</label>
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      required 
-                      value={editingPatient.name}
-                      onChange={e => setEditingPatient({...editingPatient, name: e.target.value})}
-                      placeholder="例: 山田 花子"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">性別 *</label>
-                    <select 
-                      className="form-control"
-                      value={editingPatient.gender}
-                      onChange={e => setEditingPatient({...editingPatient, gender: e.target.value})}
-                    >
-                      <option value="male">男性</option>
-                      <option value="female">女性</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">生年月日 *</label>
-                    <input 
-                      type="date" 
-                      className="form-control" 
-                      required 
-                      value={editingPatient.birthDate}
-                      onChange={e => setEditingPatient({...editingPatient, birthDate: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">身長 (cm) *</label>
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      className="form-control" 
-                      required 
-                      value={editingPatient.height}
-                      onChange={e => setEditingPatient({...editingPatient, height: e.target.value})}
-                      placeholder="例: 165"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">体重 (kg) *</label>
-                    <input 
-                      type="number" 
-                      step="0.1" 
-                      className="form-control" 
-                      required 
-                      value={editingPatient.weight}
-                      onChange={e => setEditingPatient({ ...editingPatient, weight: e.target.value })}
-                      placeholder="例: 55"
-                    />
-                  </div>
-                </div>
-
-                <h4 style={{ margin: '20px 0 10px', fontSize: '0.95rem', color: 'var(--color-primary)', borderBottom: '1px solid var(--color-border)', paddingBottom: '5px' }}>
-                  検査データ（任意）
-                </h4>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">血清クレアチニン (mg/dL)</label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      className="form-control" 
-                      value={editingPatient.creatinine || ''}
-                      onChange={e => setEditingPatient({...editingPatient, creatinine: e.target.value})}
-                      placeholder="例: 0.85"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">白血球数 WBC (/μL)</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={editingPatient.wbc || ''}
-                      onChange={e => setEditingPatient({...editingPatient, wbc: e.target.value})}
-                      placeholder="例: 4500"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">血小板数 PLT (万/μL)</label>
-                    <input 
-                      type="number" 
-                      className="form-control" 
-                      value={editingPatient.plt || ''}
-                      onChange={e => setEditingPatient({...editingPatient, plt: e.target.value})}
-                      placeholder="例: 22"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginTop: '15px' }}>
-                  <label className="form-label">カルテコメント・特記事項（任意）</label>
-                  <textarea 
-                    className="form-control" 
-                    rows="3"
-                    value={editingPatient.comments || ''}
-                    onChange={e => setEditingPatient({...editingPatient, comments: e.target.value})}
-                    placeholder="患者の特記事項、経過、アレルギー、併用薬などを記入してください。"
-                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                  <button type="button" className="btn btn-outline" onClick={() => setIsEditing(false)}>
-                    キャンセル
-                  </button>
-                  <button type="submit" className="btn btn-secondary">
-                    保存する
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <PatientForm
+            mode="add"
+            existingPatients={patients}
+            onSave={(newPt) => {
+              onAddPatient({ ...newPt, activeRegimen: null, schedule: [] });
+              setIsAdding(false);
+            }}
+            onCancel={() => setIsAdding(false)}
+          />
+        ) : isEditing ? (
+          <PatientForm
+            mode="edit"
+            initialData={editingPatient || selectedPatient}
+            existingPatients={patients}
+            onSave={(updatedPt) => {
+              onUpdatePatient({ ...selectedPatient, ...updatedPt });
+              setIsEditing(false);
+              setEditingPatient(null);
+            }}
+            onCancel={() => {
+              setIsEditing(false);
+              setEditingPatient(null);
+            }}
+          />
         ) : selectedPatient ? (
           /* 患者カルテ詳細 */
           <div>
