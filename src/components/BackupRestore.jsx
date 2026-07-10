@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Database, Download, Upload, Shield, AlertCircle, FileText, CheckCircle } from 'lucide-react';
-import { safeSetLocalStorage } from '../utils/storageUtils';
+import { safeSetLocalStorage, safeRemoveLocalStorage } from '../utils/storageUtils';
 import { useConfirm } from '../hooks/useConfirm';
 import ConfirmModal from './ConfirmModal';
 import {
@@ -152,7 +152,7 @@ export default function BackupRestore({ patients, regimens, drugsMaster = [], on
           onUpdateDrugs(parsed.drugs);
         } else {
           onUpdateDrugs([]);
-          localStorage.removeItem('onco_drugs');
+          safeRemoveLocalStorage('onco_drugs');
         }
         showSuccess('総合バックアップファイルからすべてのデータを復元しました。');
       }
