@@ -12,6 +12,7 @@ import PatientForm from './patient/PatientForm';
 import PatientSummary from './patient/PatientSummary';
 import LabInputPanel from './patient/LabInputPanel';
 import WeightRecalcPanel from './patient/WeightRecalcPanel';
+import RegimenAssignPanel from './patient/RegimenAssignPanel';
 export default function PatientList({
 
   patients,
@@ -47,18 +48,7 @@ export default function PatientList({
   const [showDosePreview, setShowDosePreview] = useState(false);
   const [eventNotes, setEventNotes] = useState('');
 
-  // レジメン割り当て用の状態
-  const [assignRegimenId, setAssignRegimenId] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [isChangingRegimen, setIsChangingRegimen] = useState(false);
-  const [startCycleInput, setStartCycleInput] = useState(1);
-  const [startDayInput, setStartDayInput] = useState(1);
 
-  // レジメン選択が切り替わったら開始サイクル・Dayの入力をリセットする
-  useEffect(() => {
-    setStartCycleInput(1);
-    setStartDayInput(1);
-  }, [assignRegimenId]);
 
   // 患者切り替え時に体重入力・プレビューをリセットする
   useEffect(() => {
@@ -374,103 +364,7 @@ export default function PatientList({
     toast('患者情報を更新しました。');
   };
 
-  // レジメンの割り当て処理
-  const handleAssignRegimen = async () => {
-    if (!assignRegimenId || !startDate) {
-      toast('レジメンと開始日を選択してください。');
-      return;
-    }
 
-    if (selectedPatient.activeRegimen) {
-      const ok = await confirm(
-        'すでにレジメンが割り当てられています。異なるレジメンに変更すると、現在の投与スケジュールおよび実施履歴はすべて削除されます。変更してもよろしいですか？',
-        'レジメンの変更',
-        { confirmLabel: '変更する', variant: 'danger' }
-      );
-      if (!ok) {
-        return;
-      }
-    }
-    
-    const reg = regimens.find(r => r.id === assignRegimenId);
-    if (!reg) return;
-
-    const { schedule, targetCycles } = generateSchedule(reg, startDate, startCycleInput, startDayInput);
-
-    const updatedPatient = {
-      ...selectedPatient,
-      activeRegimen: {
-        regimenId: reg.id,
-        startDate,
-        currentCycle: parseInt(startCycleInput) || 1,
-        totalCycles: targetCycles,
-        drugs: JSON.parse(JSON.stringify(reg.drugs))
-      },
-      schedule,
-    };
-
-    onUpdatePatient(updatedPatient);
-    setIsChangingRegimen(false);
-    toast('レジメンを割り当てました。');
-  };
-
-  // レジメンの割り当て解除処理
-  const handleRemoveRegimen = async () => {
-    if (!selectedPatient) return;
-    const ok = await confirm(
-      'この患者のレジメン割り当てを解除してもよろしいですか？\n（作成済みの投与スケジュールや実施履歴はすべて削除されます）',
-      'レジメン割り当ての解除',
-      { confirmLabel: '解除する', variant: 'danger' }
-    );
-    if (ok) {
-      const updatedPatient = {
-        ...selectedPatient,
-        activeRegimen: null,
-        schedule: [],
-      };
-      onUpdatePatient(updatedPatient);
-      setIsChangingRegimen(false);
-      toast('レジメンの割り当てを解除しました。');
-    }
-  };
-
-  // ルンスミオ8サイクル完了時の効果評価の適用処理
-  const handleSetResponseEvaluation = (evaluation) => {
-    if (!selectedPatient || !selectedPatient.activeRegimen) return;
-
-    let schedule = [...(selectedPatient.schedule || [])];
-    let totalCycles = selectedPatient.activeRegimen.totalCycles || 17;
-    
-    if (evaluation === 'CR') {
-      // 8サイクルで治療終了
-      schedule = schedule.filter(s => s.cycleNumber <= 8);
-      totalCycles = 8;
-    } else if (evaluation === 'PR_SD') {
-      // 9サイクル以降の見込み予定を確定予定（pending）に変更
-      schedule = schedule.map(s => (s.cycleNumber >= 9 && s.status === 'provisional') ? {
-        ...s,
-        status: 'pending'
-      } : s);
-      totalCycles = 17;
-    } else if (evaluation === null) {
-      // 評価未定に戻す場合、8サイクル完了分を残し、9サイクル以降を provisional（見込み）として再構築
-      const reg = regimens.find(r => r.id === selectedPatient.activeRegimen.regimenId);
-      if (reg) {
-        schedule = rebuildProvisionalCycles(schedule, reg);
-      }
-      totalCycles = 17;
-    }
-    
-    onUpdatePatient({
-      ...selectedPatient,
-      activeRegimen: {
-        ...selectedPatient.activeRegimen,
-        totalCycles,
-        responseEvaluation: evaluation
-      },
-      schedule
-    });
-  };
 
 
   // 検査値の保存
@@ -642,217 +536,14 @@ export default function PatientList({
               </div>
             </div>
 
-            {/* 化学療法レジメン設定 */}
-            <div className="card" style={{ marginTop: '20px' }}>
-              <div className="card-header">
-                <h3 className="card-title">
-                  <Calendar size={20} />
-                  化学療法レジメン設定
-                </h3>
-              </div>
-              <div className="card-body">
-                {selectedPatient.activeRegimen && !isChangingRegimen ? (
-                  <div>
-                    {/* 設定済みレジメンの表示 */}
-                    {(() => {
-                      const reg = regimens.find(r => r.id === selectedPatient.activeRegimen.regimenId);
-                      return (
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                            <div>
-                              <h4 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--color-primary)', margin: 0 }}>{reg?.name}</h4>
-                              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: '4px 0 0 0' }}>
-                                開始日: {selectedPatient.activeRegimen.startDate} / サイクル: {selectedPatient.activeRegimen.currentCycle} of {selectedPatient.activeRegimen.totalCycles}
-                              </p>
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                type="button" 
-                                className="btn btn-outline" 
-                                style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                                onClick={() => {
-                                  setAssignRegimenId(selectedPatient.activeRegimen.regimenId);
-                                  setStartDate(selectedPatient.activeRegimen.startDate);
-                                  setIsChangingRegimen(true);
-                                }}
-                              >
-                                レジメンを変更
-                              </button>
-                              <button 
-                                type="button" 
-                                className="btn btn-danger" 
-                                style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
-                                onClick={handleRemoveRegimen}
-                              >
-                                割り当て解除
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* ルンスミオ効果評価入力セクション */}
-                          {(() => {
-                            const isLunsumioMonotherapy = reg && (
-                              reg.protocolType === PROTOCOL_TYPES.LUNSUMIO_SC ||
-                              reg.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV ||
-                              // V4移行完了後に削除予定のレガシー判定
-                              ['R012', 'R013', 'R9045', 'R6365'].includes(reg.id) ||
-                              (
-                                (reg.name?.includes('ルンスミオ') || reg.name?.includes('モスネツズマブ')) &&
-                                (reg.name?.includes('単剤') || reg.drugs?.length === 1)
-                              )
-                            );
-                            
-                            if (!isLunsumioMonotherapy) return null;
-                            
-                            const currentCycleNum = selectedPatient.activeRegimen.currentCycle || 1;
-                            const isEightCycleCompleted = currentCycleNum >= 8; 
-                            
-                            if (!isEightCycleCompleted) return null;
-
-                            return (
-                              <div style={{
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '8px',
-                                padding: '16px',
-                                marginBottom: '20px',
-                                backgroundColor: '#f0f9ff',
-                                border: '1px solid #bae6fd',
-                                marginTop: '10px'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                                  <span style={{ fontSize: '1.1rem' }}>🏥</span>
-                                  <h5 style={{ fontSize: '0.9rem', fontWeight: '700', margin: 0, color: 'var(--color-text-dark)' }}>
-                                    ルンスミオ効果評価（8サイクル完了時）
-                                  </h5>
-                                </div>
-                                {selectedPatient.activeRegimen.responseEvaluation ? (
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                      <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>評価結果:</span>
-                                      <span style={{
-                                        fontSize: '0.85rem',
-                                        fontWeight: '700',
-                                        color: selectedPatient.activeRegimen.responseEvaluation === 'CR' ? '#16a34a' : '#d97706'
-                                      }}>
-                                        {selectedPatient.activeRegimen.responseEvaluation === 'CR' ? 'CR（完全奏効）- 8C終了' : 'PR/SD（継続投与）- 17C延長確定'}
-                                      </span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="btn btn-outline"
-                                      style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                                      onClick={() => handleSetResponseEvaluation(null)}
-                                    >
-                                      再評価（クリア）
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '0 0 10px 0', lineHeight: '1.4' }}>
-                                      8サイクル投与完了後の効果判定を入力してください。CRの場合は見込みの9〜17Cを削除し、PR/SDの場合は確定させます。
-                                    </p>
-                                    <div style={{ display: 'flex', gap: '10px' }}>
-                                      <button
-                                        type="button"
-                                        className="btn btn-success"
-                                        style={{
-                                          flex: 1, padding: '8px 12px', fontSize: '0.8rem',
-                                          backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer'
-                                        }}
-                                        onClick={async () => {
-                                          const ok = await confirm(
-                                            '効果評価を「CR（完全奏効）」として確定します。見込みの9〜17C予定はすべて削除されます。\nよろしいですか？',
-                                            'CR確定',
-                                            { confirmLabel: '確定する' }
-                                          );
-                                          if (ok) {
-                                            handleSetResponseEvaluation('CR');
-                                          }
-                                        }}
-                                      >
-                                        CR（完全奏効）
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="btn btn-warning"
-                                        style={{
-                                          flex: 1, padding: '8px 12px', fontSize: '0.8rem',
-                                          backgroundColor: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer'
-                                        }}
-                                        onClick={async () => {
-                                          const ok = await confirm(
-                                            '効果評価を「PR/SD（継続）」として確定します。9〜17Cの見込み予定が正式予定として確定されます。\nよろしいですか？',
-                                            'PR/SD確定',
-                                            { confirmLabel: '確定する' }
-                                          );
-                                          if (ok) {
-                                            handleSetResponseEvaluation('PR_SD');
-                                          }
-                                        }}
-                                      >
-                                        PR / SD (継続)
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })()}
-
-                          <h5 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '8px' }}>計算された薬物体表面積換算投与量：</h5>
-                          <table className="table" style={{ marginBottom: '20px' }}>
-                            <thead>
-                              <tr>
-                                <th>薬剤名</th>
-                                <th>基準投与量</th>
-                                <th>投与対象日</th>
-                                <th>投与経路</th>
-                                <th>計算後投与量</th>
-                                <th>投与順・時間</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(selectedPatient.activeRegimen?.drugs || reg?.drugs || []).map((drug, idx) => {
-                                let calculatedDose = 0;
-                                let formulaText = '';
-                                if (drug.doseType === 'bsa') {
-                                  calculatedDose = drug.doseValue * selectedPatient.bsa;
-                                  formulaText = drug.doseValue + ' mg/m² × ' + selectedPatient.bsa + ' m²';
-                                } else if (drug.doseType === 'weight') {
-                                  calculatedDose = drug.doseValue * selectedPatient.weight;
-                                  formulaText = drug.doseValue + ' mg/kg × ' + selectedPatient.weight + ' kg';
-                                } else {
-                                  calculatedDose = drug.doseValue;
-                                  formulaText = '固定量';
-                                }
-                                return (
-                                  <tr key={idx}>
-                                    <td style={{ fontWeight: '600' }}>{drug.name}</td>
-                                    <td>{drug.doseValue} {drug.doseType === 'bsa' ? 'mg/m²' : drug.doseType === 'weight' ? 'mg/kg' : 'mg'}</td>
-                                    <td>
-                                      {'Day ' + (drug.applicableDays || reg?.drugDays || []).join(', ')}
-                                      {drug.applicableCycles && (
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                                          (Cycle {drug.applicableCycles.join(', ')})
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td>{drug.route}</td>
-                                    <td className="num-tabular" style={{ color: 'var(--color-secondary)', fontWeight: '700', fontSize: '1rem' }}>
-                                      {formatDoseStr(calculatedDose, drug.name)}
-                                    </td>
-                                    <td>
-                                      <div style={{ fontSize: '0.8rem', color: 'var(--color-text-dark)' }}>
-                                        {drug.order}番目 / {drug.duration}分
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-
-                          {/* 治療スケジュールおよび投与薬剤一覧（月間カレンダー方式） */}
+            <RegimenAssignPanel 
+              key={selectedPatient.id}
+              patient={selectedPatient}
+              regimens={regimens}
+              onUpdatePatient={onUpdatePatient}
+              confirm={confirm}
+            >
+              {/* 治療スケジュールおよび投与薬剤一覧（月間カレンダー方式） */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderTop: '1px solid var(--color-border)', paddingTop: '15px' }}>
                             <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: 0 }}>投与スケジュールカレンダー：</h5>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -1611,97 +1302,7 @@ export default function PatientList({
                             </div>
                           ) : null}
 
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  /* レジメンの新規割り当て・変更フォーム */
-                  <div>
-                    <h4 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--color-primary)', marginBottom: '15px' }}>
-                      {isChangingRegimen ? 'レジメンの変更' : 'レジメンの新規割り当て'}
-                    </h4>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      <div className="form-group">
-                        <label className="form-label">適用レジメンテンプレート *</label>
-                        <select 
-                          className="form-control"
-                          value={assignRegimenId}
-                          onChange={e => setAssignRegimenId(e.target.value)}
-                        >
-                          <option value="">-- レジメンを選択してください --</option>
-                          {regimens.map(r => (
-                            <option key={r.id} value={r.id}>{r.name} (がん種: {r.cancerType})</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="form-row">
-                        <div className="form-group">
-                          <label className="form-label">治療開始日 *</label>
-                          <input 
-                            type="date" 
-                            className="form-control"
-                            value={startDate}
-                            onChange={e => setStartDate(e.target.value)}
-                          />
-                        </div>
-
-                        {assignRegimenId && (
-                          <>
-                            <div className="form-group">
-                              <label className="form-label">開始サイクル数 (通常は 1) *</label>
-                              <select 
-                                className="form-control"
-                                value={startCycleInput}
-                                onChange={e => setStartCycleInput(parseInt(e.target.value))}
-                              >
-                                {(() => {
-                                  const reg = regimens.find(r => r.id === assignRegimenId);
-                                  const maxCycles = reg ? reg.totalCycles : 17;
-                                  return Array.from({ length: maxCycles }, (_, i) => i + 1).map(c => (
-                                    <option key={c} value={c}>{c} サイクル目</option>
-                                  ));
-                                })()}
-                              </select>
-                            </div>
-
-                            <div className="form-group">
-                              <label className="form-label">開始予定Day *</label>
-                              <select 
-                                className="form-control"
-                                value={startDayInput}
-                                onChange={e => setStartDayInput(parseInt(e.target.value))}
-                              >
-                                {(() => {
-                                  const reg = regimens.find(r => r.id === assignRegimenId);
-                                  const maxDays = reg ? reg.cycleDays : 28;
-                                  return Array.from({ length: maxDays }, (_, i) => i + 1).map(d => (
-                                    <option key={d} value={d}>Day {d}</option>
-                                  ));
-                                })()}
-                              </select>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                      <button className="btn btn-secondary" onClick={handleAssignRegimen}>
-                        {isChangingRegimen ? '変更を適用する' : 'レジメンの割り当てを実行する'}
-                      </button>
-                      {isChangingRegimen && (
-                        <button className="btn btn-outline" onClick={() => setIsChangingRegimen(false)}>
-                          キャンセル
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            </RegimenAssignPanel>
           </div>) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)' }}>
             <FileText size={64} style={{ marginBottom: '16px', strokeWidth: '1' }} />
