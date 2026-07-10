@@ -3,6 +3,7 @@ import { Plus, Trash2, Shield, Calendar, Clock, List, ChevronLeft, ChevronRight,
 import { getLocalDateString } from '../utils/dateUtils';
 import { useToast } from '../hooks/useToast';
 import { v4 as uuidv4 } from 'uuid';
+import { PROTOCOL_TYPES, guessProtocolType } from '../utils/regimenProtocols';
 
 const formatCyclesArray = (arr) => {
   if (!arr || arr.length === 0) return '';
@@ -206,6 +207,7 @@ export default function RegimenList({
   const [newRegimen, setNewRegimen] = useState({
     name: '',
     cancerType: '',
+    protocolType: '',
     cycleDays: 21,
     totalCycles: 4,
     drugDaysRaw: '1',
@@ -352,6 +354,7 @@ export default function RegimenList({
       id: editingRegimenId || `R-${uuidv4().split('-')[0]}`,
       name: newRegimen.name,
       cancerType: newRegimen.cancerType,
+      protocolType: newRegimen.protocolType || guessProtocolType(newRegimen.name) || null,
       cycleDays: parseInt(newRegimen.cycleDays),
       totalCycles: parseInt(newRegimen.totalCycles),
       drugDays,
