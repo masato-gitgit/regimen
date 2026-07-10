@@ -52,10 +52,7 @@ export default function App() {
     const errors = [];
 
     // ---- マイグレーションバージョン管理 ----
-    // 現在の最新バージョン。新しいマイグレーションを追加したら MIGRATION_VERSION を増やす。
-    const MIGRATION_VERSION = 3;
     const storedMigVer = parseInt(localStorage.getItem('onco_migration_version') || '0', 10);
-    let migrationVersion = storedMigVer;
 
     let currentRegimens = [];
     if (storedRegimens) {
@@ -66,6 +63,7 @@ export default function App() {
         console.error('onco_regimens のデータが破損しています:', e);
         errors.push('レジメンデータ（onco_regimens）が破損しています。データをリセットしました。バックアップファイルから復元してください。');
         currentRegimens = [];
+        safeSetLocalStorage('onco_regimens', '[]');
       }
     }
 
@@ -78,6 +76,7 @@ export default function App() {
         console.error('onco_patients のデータが破損しています:', e);
         errors.push('患者データ（onco_patients）が破損しています。データをリセットしました。バックアップファイルから復元してください。');
         currentPatients = [];
+        safeSetLocalStorage('onco_patients', '[]');
       }
       
       // 古いダミー患者のクリーンアップ（ここは移行処理とは別に維持）
