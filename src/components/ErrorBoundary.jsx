@@ -49,10 +49,6 @@ export default class ErrorBoundary extends React.Component {
     window.location.reload();
   }
 
-  handleDismiss() {
-    this.setState({ hasError: false, message: '', stack: '' });
-  }
-
   /* ------ フォールバック UI ------ */
   render() {
     if (!this.state.hasError) return this.props.children;
@@ -162,7 +158,7 @@ export default class ErrorBoundary extends React.Component {
             {/* ボタン */}
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                onClick={this.handleReload}
+                onClick={this.handleReload.bind(this)}
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -180,24 +176,6 @@ export default class ErrorBoundary extends React.Component {
               >
                 🔄 ページを再読み込み
               </button>
-              <button
-                onClick={this.handleDismiss.bind(this)}
-                style={{
-                  padding: '12px 18px',
-                  backgroundColor: 'transparent',
-                  color: '#94a3b8',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-                title="このまま続ける（不安定な可能性があります）"
-              >
-                続ける
-              </button>
-            </div>
-            <div style={{ textAlign: 'center', color: '#475569', fontSize: '0.75rem', marginTop: '12px' }}>
-              「続ける」を選択した場合、動作が不安定になる可能性があります
             </div>
           </div>
         </div>
