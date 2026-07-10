@@ -82,4 +82,42 @@ describe('scheduleUtils', () => {
     expect(lastItem.dayNumber).toBe(21);
     expect(lastItem.isDrugDay).toBe(false);
   });
+
+  it('should generate correct schedule for Lunsumio (17 cycles)', () => {
+    const lunsumioRegimen = {
+      id: 'lunsumio-001',
+      name: 'ルンスミオ (17サイクル)',
+      cycleDays: 21,
+      totalCycles: 17,
+      drugs: [
+        { 
+          name: 'モスネツズマブ', 
+          applicableCycles: [1], 
+          applicableDays: [1, 8, 15] 
+        },
+        { 
+          name: 'モスネツズマブ', 
+          applicableCycles: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], 
+          applicableDays: [1] 
+        }
+      ]
+    };
+
+    const { schedule } = generateSchedule(lunsumioRegimen, '2026-01-01', 1, 1);
+    // 21 days * 17 cycles = 357 days
+    expect(schedule.length).toBe(357);
+
+    // C1 Day1, 8, 15 are drug days
+    expect(schedule.find(s => s.cycleNumber === 1 && s.dayNumber === 1).isDrugDay).toBe(true);
+    expect(schedule.find(s => s.cycleNumber === 1 && s.dayNumber === 8).isDrugDay).toBe(true);
+    expect(schedule.find(s => s.cycleNumber === 1 && s.dayNumber === 15).isDrugDay).toBe(true);
+    expect(schedule.find(s => s.cycleNumber === 1 && s.dayNumber === 2).isDrugDay).toBe(false);
+
+    // C2 Day1 is drug day, Day8 is not
+    expect(schedule.find(s => s.cycleNumber === 2 && s.dayNumber === 1).isDrugDay).toBe(true);
+    expect(schedule.find(s => s.cycleNumber === 2 && s.dayNumber === 8).isDrugDay).toBe(false);
+
+    // C17 Day1 is drug day
+    expect(schedule.find(s => s.cycleNumber === 17 && s.dayNumber === 1).isDrugDay).toBe(true);
+  });
 });
