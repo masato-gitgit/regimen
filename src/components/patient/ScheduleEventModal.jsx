@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatDose } from '../../utils/doseUtils';
+import { getLocalDateString, parseLocalDate, addDays } from '../../utils/dateUtils';
 import { applyTecvayliRestart, applyLunsumioRestart, applyTalquetamabRestart, changeTecvayliInterval, changeCombinationInterval } from '../../utils/protocolActions';
 import { useToast } from '../../hooks/useToast';
 
@@ -36,7 +37,7 @@ export default function ScheduleEventModal({
     if (!selectedPatient || !selectedPatient.schedule) return null;
     const completedEvents = selectedPatient.schedule
       .filter(s => s.status === 'completed' && s.isDrugDay)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => b.date.localeCompare(a.date));
     if (completedEvents.length === 0) return null;
     const lastCompleted = completedEvents[0];
     const hasCrs = lastCompleted.crsGrade && lastCompleted.crsGrade !== 'none';
@@ -140,8 +141,8 @@ export default function ScheduleEventModal({
       s => s.cycleNumber === 1 && s.dayNumber === 11
     );
     if (!startEvent) return 0;
-    const startDate = new Date(startEvent.date);
-    const eventDate = new Date(selectedEvent.date);
+    const startDate = parseLocalDate(startEvent.date);
+    const eventDate = parseLocalDate(selectedEvent.date);
     const diffTime = eventDate.getTime() - startDate.getTime();
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
     return Math.floor(diffDays / 7);
@@ -288,13 +289,13 @@ export default function ScheduleEventModal({
                                                 const targetDateStr = selectedEvent.date;
                                                 let updatedSchedule = selectedPatient.schedule.map(s => {
                                                   if (s.date >= targetDateStr) {
-                                                    const d = new Date(s.date);
-                                                    d.setDate(d.getDate() + 7);
-                                                    return { ...s, date: getLocalDateString(d) };
+                                                    const d = parseLocalDate(s.date);
+                                                    const newD = addDays(d, 7);
+                                                    return { ...s, date: getLocalDateString(newD) };
                                                   }
                                                   return s;
                                                 });
-                                                updatedSchedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                                updatedSchedule.sort((a, b) => a.date.localeCompare(b.date));
                                                 onUpdatePatient({
                                                   ...selectedPatient,
                                                   schedule: updatedSchedule
@@ -360,13 +361,13 @@ export default function ScheduleEventModal({
                                         const days = parseInt(delayDays);
                                         let updatedSchedule = selectedPatient.schedule.map(s => {
                                           if (s.date >= targetDateStr) {
-                                            const d = new Date(s.date);
-                                            d.setDate(d.getDate() + days);
-                                            return { ...s, date: getLocalDateString(d) };
+                                            const d = parseLocalDate(s.date);
+                                                    const newD = addDays(d, days);
+                                                    return { ...s, date: getLocalDateString(newD) };
                                           }
                                           return s;
                                         });
-                                        updatedSchedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                        updatedSchedule.sort((a, b) => a.date.localeCompare(b.date));
                                         
                                         onUpdatePatient({
                                           ...selectedPatient,
@@ -406,8 +407,8 @@ export default function ScheduleEventModal({
                                       className="btn btn-secondary" 
                                       onClick={() => {
                                         if (!manualDate) return;
-                                        const oldDate = new Date(selectedEvent.date);
-                                        const newDate = new Date(manualDate);
+                                        const oldDate = parseLocalDate(selectedEvent.date);
+                                        const newDate = parseLocalDate(manualDate);
                                         const diffTime = newDate.getTime() - oldDate.getTime();
                                         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
@@ -416,9 +417,9 @@ export default function ScheduleEventModal({
                                           if (slideRest) {
                                             // 後続も連動シフトする場合
                                             if (s.date >= targetDateStr) {
-                                              const d = new Date(s.date);
-                                              d.setDate(d.getDate() + diffDays);
-                                              return { ...s, date: getLocalDateString(d) };
+                                              const d = parseLocalDate(s.date);
+                                                    const newD = addDays(d, diffDays);
+                                                    return { ...s, date: getLocalDateString(newD) };
                                             }
                                           } else {
                                             // 選択した単一の日だけ変更する場合
@@ -428,7 +429,7 @@ export default function ScheduleEventModal({
                                           }
                                           return s;
                                         });
-                                        updatedSchedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                                        updatedSchedule.sort((a, b) => a.date.localeCompare(b.date));
                                         onUpdatePatient({ ...selectedPatient, schedule: updatedSchedule });
                                         toast(slideRest ? ('予定日を修正し、後続の日程も ' + diffDays + ' 日分シフトしました。') : '選択した日の予定日を修正しました。');
                                         setSelectedEvent(null);
@@ -538,7 +539,7 @@ export default function ScheduleEventModal({
                                           hematologicGrade: hematologicGrade,
                                           otherGrade: otherGrade
                                         } : s);
-                                        const isToday = getLocalDateString(new Date()) === targetDateStr;
+                                        const isToday = getLocalDateString() === targetDateStr;
                                         onUpdatePatient({ 
                                           ...selectedPatient, 
                                           schedule: updatedSchedule,
@@ -757,7 +758,7 @@ export default function ScheduleEventModal({
                                           }
                                           return s;
                                         });
-                                        const isToday = getLocalDateString(new Date()) === targetDateStr;
+                                        const isToday = getLocalDateString() === targetDateStr;
                                         onUpdatePatient({ 
                                           ...selectedPatient, 
                                           schedule: updatedSchedule,
