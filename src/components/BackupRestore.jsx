@@ -9,6 +9,8 @@ import {
   validateRegimens,
   validateDrugs,
 } from '../utils/importValidation';
+import { getLocalDateString } from '../utils/dateUtils';
+
 
 export default function BackupRestore({ patients, regimens, drugsMaster = [], onUpdatePatients, onUpdateRegimens, onUpdateDrugs, onBackupExecuted }) {
   const fileInputRefAll = useRef(null);
@@ -21,12 +23,6 @@ export default function BackupRestore({ patients, regimens, drugsMaster = [], on
   const [errorMessage, setErrorMessage] = useState('');
   const { confirm, modalProps: confirmModalProps } = useConfirm();
 
-  const getLocalDateString = (dateObj = new Date()) => {
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
 
   const showSuccess = (msg) => {

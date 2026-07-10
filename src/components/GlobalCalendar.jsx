@@ -1,127 +1,10 @@
 import React, { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, User, BookOpen } from 'lucide-react';
 import { calcAndFormatDoseStr } from '../utils/doseUtils';
+import { getLocalDateString } from '../utils/dateUtils';
+import { PROTOCOL_TYPES } from '../utils/regimenProtocols';
+import { getJapaneseHoliday } from '../utils/holidayUtils';
 
-const getLocalDateString = (d) => {
-  if (!(d instanceof Date)) return '';
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const getJapaneseHoliday = (date) => {
-  const y = date.getFullYear();
-  const m = date.getMonth() + 1;
-  const d = date.getDate();
-  const w = date.getDay();
-
-  const getDayNumberOfMonth = (dt) => {
-    return Math.floor((dt.getDate() - 1) / 7) + 1;
-  };
-
-  const getVernalEquinox = (year) => {
-    if (year < 1900 || year > 2099) return 20;
-    return Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-  };
-
-  const getAutumnalEquinox = (year) => {
-    if (year < 1900 || year > 2099) return 23;
-    return Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-  };
-
-  const vernal = getVernalEquinox(y);
-  const autumnal = getAutumnalEquinox(y);
-
-  let holidayName = '';
-
-  if (m === 5 && d === 1) holidayName = '休日';
-  else if (m === 12 && d === 29) holidayName = '年末年始休暇';
-  else if (m === 12 && d === 30) holidayName = '年末年始休暇';
-  else if (m === 12 && d === 31) holidayName = '年末年始休暇';
-  else if (m === 1 && d === 1) holidayName = '元日';
-  else if (m === 1 && w === 1 && getDayNumberOfMonth(date) === 2) holidayName = '成人の日';
-  else if (m === 2 && d === 11) holidayName = '建国記念の日';
-  else if (m === 2 && d === 23) holidayName = '天皇誕生日';
-  else if (m === 3 && d === vernal) holidayName = '春分の日';
-  else if (m === 4 && d === 29) holidayName = '昭和の日';
-  else if (m === 5 && d === 3) holidayName = '憲法記念日';
-  else if (m === 5 && d === 4) holidayName = 'みどりの日';
-  else if (m === 5 && d === 5) holidayName = 'こどもの日';
-  else if (m === 7 && w === 1 && getDayNumberOfMonth(date) === 3) holidayName = '海の日';
-  else if (m === 8 && d === 11) holidayName = '山の日';
-  else if (m === 9 && w === 1 && getDayNumberOfMonth(date) === 3) holidayName = '敬老の日';
-  else if (m === 9 && d === autumnal) holidayName = '秋分の日';
-  else if (m === 10 && w === 1 && getDayNumberOfMonth(date) === 2) holidayName = 'スポーツの日';
-  else if (m === 11 && d === 3) holidayName = '文化の日';
-  else if (m === 11 && d === 23) holidayName = '勤労感謝の日';
-
-  if (holidayName) return holidayName;
-
-  const checkHolidayOnly = (y, m, d, w) => {
-    const tempDate = new Date(y, m - 1, d);
-    const tempW = tempDate.getDay();
-    const tempN = Math.floor((d - 1) / 7) + 1;
-    const tempVern = getVernalEquinox(y);
-    const tempAut = getAutumnalEquinox(y);
-
-    if (m === 1 && d === 1) return true;
-    if (m === 1 && tempW === 1 && tempN === 2) return true;
-    if (m === 2 && d === 11) return true;
-    if (m === 2 && d === 23) return true;
-    if (m === 3 && d === tempVern) return true;
-    if (m === 4 && d === 29) return true;
-    if (m === 5 && d === 3) return true;
-    if (m === 5 && d === 4) return true;
-    if (m === 5 && d === 5) return true;
-    if (m === 7 && tempW === 1 && tempN === 3) return true;
-    if (m === 8 && d === 11) return true;
-    if (m === 9 && tempW === 1 && tempN === 3) return true;
-    if (m === 9 && d === tempAut) return true;
-    if (m === 10 && tempW === 1 && tempN === 2) return true;
-    if (m === 11 && d === 3) return true;
-    if (m === 11 && d === 23) return true;
-    return false;
-  };
-
-  if (w !== 0) {
-    let temp = new Date(date);
-    let shift = 1;
-    while (shift < 7) {
-      temp.setDate(temp.getDate() - 1);
-      const ty = temp.getFullYear();
-      const tm = temp.getMonth() + 1;
-      const td = temp.getDate();
-      const tw = temp.getDay();
-      
-      const isTempHoliday = checkHolidayOnly(ty, tm, td, tw);
-      if (isTempHoliday) {
-        if (tw === 0) {
-          return '振替休日';
-        }
-      } else {
-        break;
-      }
-      shift++;
-    }
-  }
-
-  if (w !== 0 && w !== 6) {
-    const prev = new Date(date);
-    prev.setDate(prev.getDate() - 1);
-    const next = new Date(date);
-    next.setDate(next.getDate() + 1);
-
-    const prevHoliday = checkHolidayOnly(prev.getFullYear(), prev.getMonth() + 1, prev.getDate(), prev.getDay());
-    const nextHoliday = checkHolidayOnly(next.getFullYear(), next.getMonth() + 1, next.getDate(), next.getDay());
-
-    if (prevHoliday && nextHoliday) {
-      return '国民の休日';
-    }
-  }
-
-  return null;
-};
 
 export default function GlobalCalendar({ patients, regimens, onSelectPatient, onNavigate }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -230,24 +113,25 @@ export default function GlobalCalendar({ patients, regimens, onSelectPatient, on
 
   // レジメンごとの配色バッジCSS
   const getRegimenBadgeStyle = (regimenId) => {
-    // R011, R6953: テクベイリ
-    if (regimenId === 'R011' || regimenId === 'R6953') {
-      return { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
+    const reg = regimens.find(r => r.id === regimenId);
+    if (!reg) return { backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' };
+
+    switch (reg.protocolType) {
+      case PROTOCOL_TYPES.TECVAYLI:
+        return { backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' };
+      case PROTOCOL_TYPES.LUNSUMIO_SC:
+      case PROTOCOL_TYPES.LUNSUMIO_IV:
+        return { backgroundColor: '#f3e8ff', color: '#6b21a8', border: '1px solid #d8b4fe' };
+      case PROTOCOL_TYPES.TALQUETAMAB:
+      case PROTOCOL_TYPES.COMBINATION:
+        return { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' };
+      default:
+        // 標準的な抗がん剤（CHOP, R-CHOP等） - fallback logic 
+        if (['R001', 'R002', 'R003'].includes(regimenId)) {
+          return { backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #7dd3fc' };
+        }
+        return { backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' };
     }
-    // R004, R005, R012, R013, R6365, R9045: ルンスミオ
-    if (['R004', 'R005', 'R012', 'R013', 'R6365', 'R9045'].includes(regimenId)) {
-      return { backgroundColor: '#f3e8ff', color: '#6b21a8', border: '1px solid #d8b4fe' };
-    }
-    // R010, R016, R8321: トアルクエタマブ・テクラスタマブ併用
-    if (regimenId === 'R010' || regimenId === 'R016' || regimenId === 'R8321') {
-      return { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' };
-    }
-    // 標準的な抗がん剤（CHOP, R-CHOP等）
-    if (['R001', 'R002', 'R003'].includes(regimenId)) {
-      return { backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #7dd3fc' };
-    }
-    // その他
-    return { backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' };
   };
 
   const handleEventClick = (patientId) => {

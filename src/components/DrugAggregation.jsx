@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import { Calendar, Shield, Users, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDose, isMicroDoseDrug } from '../utils/doseUtils';
+import { getLocalDateString } from '../utils/dateUtils';
 
 export default function DrugAggregation({ patients, regimens }) {
-  // ローカルタイムゾーンを考慮した日付文字列の取得
-  const getLocalDateString = (d) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   const getDayOfWeekStr = (dateStr) => {
     const days = ['日', '月', '火', '水', '木', '金', '土'];
     // "YYYY-MM-DD" をローカルタイムとして解釈（UTCとして扱うと JST では曜日がずれる）

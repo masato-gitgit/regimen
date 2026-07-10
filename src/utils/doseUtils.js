@@ -7,15 +7,11 @@
  *   - それ以外のすべての薬剤                            → 整数（例: 120 mg, 480 mg）
  */
 
+import { isMicroDoseProtocol } from './regimenProtocols';
+
 /** 10mg 未満のステップアップ期対象薬剤を判定する */
 export const isMicroDoseDrug = (drugName) => {
-  if (!drugName) return false;
-  return (
-    drugName.includes('テクベイリ') ||
-    drugName.includes('テクラスタマブ') ||
-    drugName.includes('タービー') ||
-    drugName.includes('トアルクエタマブ')
-  );
+  return isMicroDoseProtocol(null, drugName);
 };
 
 /**

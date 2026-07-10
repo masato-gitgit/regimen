@@ -12,6 +12,7 @@ import { LayoutDashboard, Users, BookOpen, ShieldAlert, Activity, ClipboardList,
 import { calculateEGFR } from './utils/renalUtils';
 import { safeSetLocalStorage } from './utils/storageUtils';
 import { useConfirm } from './hooks/useConfirm';
+import { useToast } from './hooks/useToast';
 
 
 
@@ -33,6 +34,15 @@ export default function App() {
   const [showBackupAlert, setShowBackupAlert] = useState(true);
   // カスタム確認ダイアログ
   const { confirm, modalProps: confirmModalProps } = useConfirm();
+  // トースト
+  const { toast } = useToast();
+
+  // トーストイベントリスナー
+  useEffect(() => {
+    const handleToastEvent = (e) => toast(e.detail.message, e.detail.type || 'info');
+    window.addEventListener('app:toast', handleToastEvent);
+    return () => window.removeEventListener('app:toast', handleToastEvent);
+  }, [toast]);
 
   // 初期ロード
   useEffect(() => {
@@ -55,104 +65,9 @@ export default function App() {
         console.error('onco_regimens のデータが破損しています:', e);
         errors.push('レジメンデータ（onco_regimens）が破損しています。データをリセットしました。バックアップファイルから復元してください。');
         currentRegimens = [];
-        safeSetLocalStorage('onco_regimens', JSON.stringify([]));
       }
-      let updatedAny = false;
-
-      // V1: 古い重複したデフォルトレジメン（R001〜R016）を自動クリーンアップ
-      if (migrationVersion < 1) {
-        const beforeLen = currentRegimens.length;
-        const oldDefaultIds = [
-          'R001', 'R002', 'R003', 'R004', 'R005', 'R006', 'R007', 'R008', 'R009', 'R010',
-          'R011', 'R012', 'R013', 'R014', 'R015', 'R016'
-        ];
-        currentRegimens = currentRegimens.filter(r => !oldDefaultIds.includes(r.id));
-        if (currentRegimens.length !== beforeLen) {
-          updatedAny = true;
-        }
-        migrationVersion = 1;
-      }
-
-      // V2: テクベイリ（R011/R6953）のレジメン設定を自動マイグレーション
-      if (migrationVersion < 2) {
-        currentRegimens = currentRegimens.map(r => {
-          if (r.id === 'R011' || r.id === 'R6953') {
-            const isCorrect = r.drugs?.length === 4 && r.drugs[3].applicableCycles?.includes(2);
-            if (!isCorrect) {
-              updatedAny = true;
-              return {
-                ...r,
-                cycleDays: 28,
-                totalCycles: 8,
-                drugs: [
-                  { name: "テクベイリ皮下注", doseValue: 0.06, doseType: "weight", route: "皮下注射", order: 1, duration: 5, applicableCycles: [1], applicableDays: [1] },
-                  { name: "テクベイリ皮下注", doseValue: 0.3,  doseType: "weight", route: "皮下注射", order: 1, duration: 5, applicableCycles: [1], applicableDays: [4] },
-                  { name: "テクベイリ皮下注", doseValue: 1.5,  doseType: "weight", route: "皮下注射", order: 1, duration: 5, applicableCycles: [1], applicableDays: [8, 15, 22] },
-                  { name: "テクベイリ皮下注", doseValue: 1.5,  doseType: "weight", route: "皮下注射", order: 1, duration: 5, applicableCycles: [2, 3, 4, 5, 6, 7, 8], applicableDays: [1, 8, 15, 22] }
-                ]
-              };
-            }
-          }
-          return r;
-        });
-        migrationVersion = 2;
-      }
-
-      // V3: ルンスミオ（R012, R013 系）のレジメン設定を自動マイグレーション
-      if (migrationVersion < 3) {
-        currentRegimens = currentRegimens.map(r => {
-          if (r.id === 'R012') {
-            const isCorrect = r.drugs?.length === 5 && r.drugs[4].applicableCycles?.includes(17);
-            if (!isCorrect) {
-              updatedAny = true;
-              return {
-                ...r,
-                cycleDays: 21,
-                totalCycles: 8,
-                drugs: [
-                  { name: "ルンスミオ点滴静注", doseValue: 1,  doseType: "fixed", route: "点滴静注", order: 1, duration: 240, applicableDays: [1],      applicableCycles: [1] },
-                  { name: "ルンスミオ点滴静注", doseValue: 2,  doseType: "fixed", route: "点滴静注", order: 1, duration: 240, applicableDays: [8],      applicableCycles: [1] },
-                  { name: "ルンスミオ点滴静注", doseValue: 60, doseType: "fixed", route: "点滴静注", order: 1, duration: 240, applicableDays: [15],     applicableCycles: [1] },
-                  { name: "ルンスミオ点滴静注", doseValue: 60, doseType: "fixed", route: "点滴静注", order: 1, duration: 120, applicableDays: [1],      applicableCycles: [2] },
-                  { name: "ルンスミオ点滴静注", doseValue: 30, doseType: "fixed", route: "点滴静注", order: 1, duration: 120, applicableDays: [1],      applicableCycles: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] }
-                ]
-              };
-            }
-          }
-          if (r.id === 'R013' || r.id === 'R6365' || r.id === 'R9045') {
-            const isCorrect = r.drugs?.length === 3 && r.drugs[2].applicableCycles?.includes(17);
-            if (!isCorrect) {
-              updatedAny = true;
-              return {
-                ...r,
-                cycleDays: 21,
-                totalCycles: 8,
-                drugs: [
-                  { name: "ルンスミオ皮下注", doseValue: 5,  doseType: "fixed", route: "皮下注射", order: 1, duration: 2, applicableDays: [1],      applicableCycles: [1] },
-                  { name: "ルンスミオ皮下注", doseValue: 45, doseType: "fixed", route: "皮下注射", order: 1, duration: 2, applicableDays: [8, 15],  applicableCycles: [1] },
-                  { name: "ルンスミオ皮下注", doseValue: 45, doseType: "fixed", route: "皮下注射", order: 1, duration: 2, applicableDays: [1],      applicableCycles: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] }
-                ]
-              };
-            }
-          }
-          return r;
-        });
-        migrationVersion = 3;
-      }
-
-      if (updatedAny) {
-        safeSetLocalStorage('onco_regimens', JSON.stringify(currentRegimens));
-      }
-
-      // マイグレーションバージョンを保存（変化があった場合のみ）
-      if (migrationVersion > storedMigVer) {
-        safeSetLocalStorage('onco_migration_version', String(MIGRATION_VERSION));
-        console.info(`[Migration] v${storedMigVer} → v${MIGRATION_VERSION} 完了`);
-      }
-    } else {
-      currentRegimens = [];
-      safeSetLocalStorage('onco_regimens', JSON.stringify([]));
     }
+
     let currentPatients = [];
     if (storedPatients) {
       try {
@@ -162,22 +77,23 @@ export default function App() {
         console.error('onco_patients のデータが破損しています:', e);
         errors.push('患者データ（onco_patients）が破損しています。データをリセットしました。バックアップファイルから復元してください。');
         currentPatients = [];
-        safeSetLocalStorage('onco_patients', JSON.stringify([]));
       }
-      // 古いダミー患者（P001〜P013, P101〜P110）のみを自動クリーンアップ
-      const beforeLen = currentPatients.length;
+      
+      // 古いダミー患者のクリーンアップ（ここは移行処理とは別に維持）
       const dummyPatientIds = [
         'P001', 'P002', 'P003', 'P004', 'P005', 'P006', 'P007', 'P008', 'P009', 'P010',
         'P011', 'P012', 'P013', 'P101', 'P102', 'P103', 'P104', 'P105', 'P106',
         'P107', 'P108', 'P109', 'P110'
       ];
       currentPatients = currentPatients.filter(p => !dummyPatientIds.includes(p.id));
-      if (currentPatients.length !== beforeLen) {
-        safeSetLocalStorage('onco_patients', JSON.stringify(currentPatients));
-      }
-    } else {
-      currentPatients = [];
-      safeSetLocalStorage('onco_patients', JSON.stringify([]));
+    }
+
+    // --- 一元化されたマイグレーションの実行 ---
+    const migrationResult = runMigrations(currentRegimens, currentPatients, storedMigVer);
+    currentRegimens = migrationResult.regimens;
+    currentPatients = migrationResult.patients;
+    if (migrationResult.updated) {
+      console.info(`[Migration] v${storedMigVer} → v${migrationResult.version} 完了`);
     }
 
     // 薬剤マスタのロードとマイグレーション
@@ -394,7 +310,7 @@ export default function App() {
   const handleDeletePatient = async (patientId) => {
     const targetPatient = patients.find(p => p.id === patientId);
     if (targetPatient && targetPatient.activeRegimen) {
-      alert(`この患者（${targetPatient.name}）は現在レジメンが割り当てられ、治療スケジュールが進行中であるため削除できません。先にレジメンの割り当てを解除してください。`);
+      toast(`この患者（${targetPatient.name}）は現在レジメンが割り当てられ、治療スケジュールが進行中であるため削除できません。先にレジメンの割り当てを解除してください。`, 'error');
       return;
     }
 
@@ -410,7 +326,7 @@ export default function App() {
       if (selectedPatientId === patientId) {
         setSelectedPatientId(null);
       }
-      alert('患者データを削除しました。');
+      toast('患者データを削除しました。');
     }
   };
 
@@ -432,7 +348,7 @@ export default function App() {
   const handleDeleteRegimen = async (regimenId) => {
     const inUse = patients.some(p => p.activeRegimen && p.activeRegimen.regimenId === regimenId);
     if (inUse) {
-      alert('このレジメンは現在治療中の患者に割り当てられているため、削除できません。患者のレジメン設定を解除するか、別のレジメンに変更してから削除してください。');
+      toast('このレジメンは現在治療中の患者に割り当てられているため、削除できません。患者のレジメン設定を解除するか、別のレジメンに変更してから削除してください。', 'error');
       return false;
     }
 
@@ -445,7 +361,7 @@ export default function App() {
       const updated = regimens.filter(r => r.id !== regimenId);
       setRegimens(updated);
       safeSetLocalStorage('onco_regimens', JSON.stringify(updated));
-      alert('レジメンを削除しました。');
+      toast('レジメンを削除しました。');
       return true;
     }
     return false;
@@ -547,7 +463,7 @@ export default function App() {
     const usedInPatientSchedule = patients.some(p => p.schedule && p.schedule.some(s => s.drugs && s.drugs.some(d => d.drugId === drugId)));
 
     if (usedInRegimen || usedInPatientActive || usedInPatientSchedule) {
-      alert('この薬剤はレジメンまたは患者スケジュールで使用中のため削除できません。');
+      toast('この薬剤はレジメンまたは患者スケジュールで使用中のため削除できません。', 'error');
       return;
     }
 

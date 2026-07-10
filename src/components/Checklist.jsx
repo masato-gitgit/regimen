@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, User, Check, AlertCircle, Clock, Save } from 'lucide-react';
 import { formatDose } from '../utils/doseUtils';
-
-const getLocalDateString = (d) => {
-  if (!(d instanceof Date)) return '';
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { getLocalDateString } from '../utils/dateUtils';
+import { PROTOCOL_TYPES } from '../utils/regimenProtocols';
+import { useToast } from '../hooks/useToast';
 
 export default function Checklist({ patients, regimens, selectedPatientId, onUpdatePatient, onSelectPatient, onNavigate }) {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
   const today = getLocalDateString(new Date());
+  const { toast } = useToast();
 
   const activeReg = selectedPatient && selectedPatient.activeRegimen
     ? regimens.find(r => r.id === selectedPatient.activeRegimen.regimenId)
@@ -95,41 +91,10 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
   };
 
   // 各薬剤種別の判定
-  const isTecveyri = activeReg && (
-    activeReg.id === 'R011' ||
-    activeReg.id === 'R6953' ||
-    activeReg.name?.includes('テクベイリ') ||
-    activeReg.name?.includes('テクラスタマブ') ||
-    activeReg.drugs?.some(d => d.name?.includes('テクベイリ') || d.name?.includes('テクラスタマブ'))
-  );
-
-  const isTalquetamab = activeReg && (
-    ['R014', 'R015', 'R016', 'R8321'].includes(activeReg.id) ||
-    activeReg.name?.includes('タービー') ||
-    activeReg.name?.includes('トアルクエタマブ') ||
-    activeReg.drugs?.some(d => d.name?.includes('タービー') || d.name?.includes('トアルクエタマブ'))
-  );
-
-  const isLunsumioSubcutaneous = activeReg && (
-    activeReg.id === 'R013' || 
-    activeReg.id === 'R9045' || 
-    activeReg.id === 'R6365' || 
-    (
-      (activeReg.name?.includes('ルンスミオ') || activeReg.name?.includes('モスネツズマブ')) &&
-      (activeReg.name?.includes('皮下注') || activeReg.drugs?.some(d => d.route?.includes('皮下'))) &&
-      (activeReg.name?.includes('単剤') || activeReg.drugs?.length === 1)
-    )
-  );
-
-  const isLunsumioIntravenous = activeReg && (
-    activeReg.id === 'R012' || 
-    (
-      (activeReg.name?.includes('ルンスミオ') || activeReg.name?.includes('モスネツズマブ')) &&
-      (activeReg.name?.includes('点滴') || activeReg.drugs?.some(d => d.route?.includes('点滴') || d.route?.includes('静脈'))) &&
-      (activeReg.name?.includes('単剤') || activeReg.drugs?.length === 1)
-    )
-  );
-
+  const isTecveyri = activeReg?.protocolType === PROTOCOL_TYPES.TECVAYLI;
+  const isTalquetamab = activeReg?.protocolType === PROTOCOL_TYPES.TALQUETAMAB;
+  const isLunsumioSubcutaneous = activeReg?.protocolType === PROTOCOL_TYPES.LUNSUMIO_SC;
+  const isLunsumioIntravenous = activeReg?.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV;
   const isLunsumioMonotherapy = isLunsumioSubcutaneous || isLunsumioIntravenous;
 
   const isTecveyriGradual = isTecveyri && todayScheduleItem && [1, 4, 8].includes(todayScheduleItem.dayNumber);
@@ -185,7 +150,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
     };
 
     onUpdatePatient(updatedPatient);
-    alert(status === 'completed' ? '投与完了を記録しました。' : 'ステータスを更新しました。');
+    toast(status === 'completed' ? '投与完了を記録しました。' : 'ステータスを更新しました。');
     if (status === 'completed') onNavigate('dashboard');
   };
 

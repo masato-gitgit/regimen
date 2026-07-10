@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Edit2, Search, AlertCircle, FileText, Check, X } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, onUpdateDrug, onDeleteDrug, confirm }) {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingDrugId, setEditingDrugId] = useState(null);
@@ -85,19 +88,19 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || formData.defaultDoseValue === '' || formData.defaultDuration === '') {
-      alert('必須項目をすべて入力してください。');
+      toast('必須項目をすべて入力してください。', 'warning');
       return;
     }
 
     if (formData.hasRenalLimit) {
       if (formData.renalThreshold === '' || formData.renalReductionRatio === '') {
-        alert('腎機能制限を設定する場合は、eGFR閾値と減量比率を両方入力してください。');
+        toast('腎機能制限を設定する場合は、eGFR閾値と減量比率を両方入力してください。', 'warning');
         return;
       }
     }
 
     const drugData = {
-      id: editingDrugId || `D${String(drugsMaster.length + 1).padStart(3, '0')}-${Date.now().toString().slice(-4)}`,
+      id: editingDrugId || `D-${uuidv4().split('-')[0]}`,
       name: formData.name.trim(),
       route: formData.route,
       doseType: formData.doseType,
@@ -111,7 +114,7 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
 
     if (editingDrugId) {
       onUpdateDrug(drugData);
-      alert('薬剤情報を更新しました。');
+      toast('薬剤情報を更新しました。');
     } else {
       // 重複チェック
       const isDuplicate = drugsMaster.some(d => d.name === drugData.name && d.route === drugData.route);
@@ -126,7 +129,7 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
         }
       }
       onAddDrug(drugData);
-      alert('新しい薬剤を登録しました。');
+      toast('新しい薬剤を登録しました。');
     }
 
     handleCancel();
@@ -145,7 +148,7 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
       if (usagePatients.length > 0) {
         msg += `使用中の患者個別レジメン: ${usagePatients.map(p => p.name).join(', ')}\n`;
       }
-      alert(msg);
+      toast(msg, 'error');
       return;
     }
 
@@ -156,7 +159,7 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
     );
     if (ok) {
       onDeleteDrug(drugId);
-      alert('薬剤を削除しました。');
+      toast('薬剤を削除しました。');
     }
   };
 

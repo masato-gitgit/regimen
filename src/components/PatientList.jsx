@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, UserPlus, FileText, CheckCircle, AlertTriangle, Plus, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { calculateEGFR } from '../utils/renalUtils';
+import { calculateEGFR, calcAge } from '../utils/renalUtils';
+import { formatDose, formatDoseStr } from '../utils/doseUtils';
+import { getLocalDateString } from '../utils/dateUtils';
+import { PROTOCOL_TYPES } from '../utils/regimenProtocols';
+import { getJapaneseHoliday } from '../utils/holidayUtils';
+import { generateSchedule } from '../utils/scheduleUtils';
+import { useToast } from '../hooks/useToast';
 export default function PatientList({
+
   patients,
   regimens,
   onAddPatient,
@@ -19,22 +26,8 @@ export default function PatientList({
     ? regimens.find(r => r.id === selectedPatient.activeRegimen.regimenId)
     : null;
 
-  const isTecveyri = activeReg && (
-    activeReg.id === 'R011' ||
-    activeReg.id === 'R6953' ||
-    activeReg.name?.includes('テクベイリ') ||
-    activeReg.name?.includes('テクラスタマブ') ||
-    activeReg.drugs?.some(d => d.name?.includes('テクベイリ') || d.name?.includes('テクラスタマブ'))
-  );
-
-  const isCombination = activeReg && (
-    activeReg.id === 'R016' ||
-    activeReg.id === 'R8321' ||
-    (
-      (activeReg.name?.includes('タービー') || activeReg.name?.includes('トアルクエタマブ')) &&
-      (activeReg.name?.includes('テクベイリ') || activeReg.name?.includes('テクラスタマブ'))
-    )
-  );
+  const isTecveyri = activeReg?.protocolType === PROTOCOL_TYPES.TECVAYLI;
+  const isCombination = activeReg?.protocolType === PROTOCOL_TYPES.COMBINATION;
 
   // 検査値アップデート用の状態
   const [labInput, setLabInput] = useState({
@@ -91,6 +84,7 @@ export default function PatientList({
   const [crsGrade, setCrsGrade] = useState('none');
   const [hematologicGrade, setHematologicGrade] = useState('none');
   const [otherGrade, setOtherGrade] = useState('none');
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [completionNotes, setCompletionNotes] = useState('');
 
@@ -178,7 +172,7 @@ export default function PatientList({
       schedule: updatedSchedule
     });
 
-    alert(`テクベイリ再開プロトコル（再開用量: ${targetDoseValue} mg/kg）を適用し、スケジュールを再構成しました。`);
+    toast(`テクベイリ再開プロトコル（再開用量: ${targetDoseValue} mg/kg）を適用し、スケジュールを再構成しました。`);
     setSelectedEvent(null);
   };
 
@@ -233,7 +227,7 @@ export default function PatientList({
       }
     });
 
-    alert('ルンスミオ再開プロトコル（初回5mgから再漸増）を適用し、スケジュールを再構成しました。');
+    toast('ルンスミオ再開プロトコル（初回5mgから再漸増）を適用し、スケジュールを再構成しました。');
     setSelectedEvent(null);
   };
 
@@ -311,7 +305,7 @@ export default function PatientList({
       }
     });
 
-    alert(`タービー再開プロトコル（再開用量: ${targetDoseValue} mg/kg）を適用し、スケジュールを再構成しました。`);
+    toast(`タービー再開プロトコル（再開用量: ${targetDoseValue} mg/kg）を適用し、スケジュールを再構成しました。`);
     setSelectedEvent(null);
   };
 
@@ -363,7 +357,7 @@ export default function PatientList({
       }
     });
     
-    alert(intervalWeeks === 2 
+    toast(intervalWeeks === 2 
       ? 'これ以降の投与間隔を2週間に延長しました（各サイクルのDay 1、Day 15に予定を再配置しました）。' 
       : 'これ以降の投与間隔を通常の毎週（1週間隔）に戻しました。');
     setSelectedEvent(null);
@@ -417,38 +411,14 @@ export default function PatientList({
       }
     });
     
-    alert(intervalWeeks === 4 
+    toast(intervalWeeks === 4 
       ? 'これ以降の投与間隔を4週間に延長しました（各サイクルのDay 11のみに予定を再配置しました）。' 
       : 'これ以降の投与間隔を通常の2週間隔（Day 11, 25）に戻しました。');
     setSelectedEvent(null);
   };
 
-  // 薬物用量フォーマット
-  const formatDose = (dose, drugName) => {
-    if (!dose && dose !== 0) return 0;
-    const isLowDose = drugName.includes('テクベイリ') || drugName.includes('テクラスタマブ') || drugName.includes('タービー') || drugName.includes('トアルクエタマブ');
-    if (isLowDose && dose < 10) {
-      return Math.round(dose * 10) / 10;
-    }
-    return Math.round(dose);
-  };
-
-  const formatDoseString = (dose, drugName) => {
-    const formatted = formatDose(dose, drugName);
-    const isLowDose = drugName.includes('テクベイリ') || drugName.includes('テクラスタマブ') || drugName.includes('タービー') || drugName.includes('トアルクエタマブ');
-    if (isLowDose && dose < 10) {
-      return `${formatted.toFixed(1)} mg`;
-    }
-    return `${formatted} mg`;
-  };
-
-  // ローカルタイムゾーンを考慮した日付文字列の取得
-  const getLocalDateString = (d) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  // 薬物用量フォーマット（doseUtils に移行済み）
+  // ローカルタイムゾーンを考慮した日付文字列の取得（dateUtils に移行済み）
 
   // 体表面積 (BSA) 計算
   const calculateBSA = (height, weight) => {
@@ -474,121 +444,10 @@ export default function PatientList({
     return Math.floor(diffDays / 7);
   };
 
-  // 年齢計算
-  const calculateAge = (birthDate) => {
-    if (!birthDate) return 0;
-    const birth = new Date(birthDate);
-    const now = new Date();
-    let age = now.getFullYear() - birth.getFullYear();
-    const monthDiff = now.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age > 0 ? age : 0;
-  };
+  // 年齢計算（renalUtils に移行済み）
 
-  // 祝日名取得
-  const getJapaneseHoliday = (date) => {
-    const y = date.getFullYear();
-    const m = date.getMonth() + 1;
-    const d = date.getDate();
-    const day = date.getDay();
-    const weekNum = Math.floor((d - 1) / 7) + 1;
-    
-    const getVernalEquinox = (year) => {
-      if (year < 1900 || year > 2099) return 20;
-      return Math.floor(20.8431 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-    };
-    
-    const getAutumnalEquinox = (year) => {
-      if (year < 1900 || year > 2099) return 23;
-      return Math.floor(23.2488 + 0.242194 * (year - 1980) - Math.floor((year - 1980) / 4));
-    };
-    
-    const vernal = getVernalEquinox(y);
-    const autumnal = getAutumnalEquinox(y);
-    let name = '';
-    
-    if (m === 5 && d === 1) name = '休日';
-    else if (m === 12 && d === 29) name = '年末年始休暇';
-    else if (m === 12 && d === 30) name = '年末年始休暇';
-    else if (m === 12 && d === 31) name = '年末年始休暇';
-    else if (m === 1 && d === 1) name = '元日';
-    else if (m === 1 && day === 1 && weekNum === 2) name = '成人の日';
-    else if (m === 2 && d === 11) name = '建国記念の日';
-    else if (m === 2 && d === 23) name = '天皇誕生日';
-    else if (m === 3 && d === vernal) name = '春分の日';
-    else if (m === 4 && d === 29) name = '昭和の日';
-    else if (m === 5 && d === 3) name = '憲法記念日';
-    else if (m === 5 && d === 4) name = 'みどりの日';
-    else if (m === 5 && d === 5) name = 'こどもの日';
-    else if (m === 7 && day === 1 && weekNum === 3) name = '海の日';
-    else if (m === 8 && d === 11) name = '山の日';
-    else if (m === 9 && day === 1 && weekNum === 3) name = '敬老の日';
-    else if (m === 9 && d === autumnal) name = '秋分の日';
-    else if (m === 10 && day === 1 && weekNum === 2) name = 'スポーツの日';
-    else if (m === 11 && d === 3) name = '文化の日';
-    else if (m === 11 && d === 23) name = '勤労感謝の日';
-    
-    if (name) return name;
-    
-    const checkHoliday = (yy, mm, dd) => {
-      const dy = new Date(yy, mm - 1, dd).getDay();
-      const wn = Math.floor((dd - 1) / 7) + 1;
-      const v = getVernalEquinox(yy);
-      const a = getAutumnalEquinox(yy);
-      return (
-        (mm === 1 && dd === 1) ||
-        (mm === 1 && dy === 1 && wn === 2) ||
-        (mm === 2 && dd === 11) ||
-        (mm === 2 && dd === 23) ||
-        (mm === 3 && dd === v) ||
-        (mm === 4 && dd === 29) ||
-        (mm === 5 && dd === 3) ||
-        (mm === 5 && dd === 4) ||
-        (mm === 5 && dd === 5) ||
-        (mm === 7 && dy === 1 && wn === 3) ||
-        (mm === 8 && dd === 11) ||
-        (mm === 9 && dy === 1 && wn === 3) ||
-        (mm === 9 && dd === a) ||
-        (mm === 10 && dy === 1 && wn === 2) ||
-        (mm === 11 && dd === 3) ||
-        (mm === 11 && dd === 23)
-      );
-    };
-    
-    if (day !== 0) {
-      let checkDate = new Date(date);
-      for (let i = 1; i < 7; i++) {
-        checkDate.setDate(checkDate.getDate() - 1);
-        const cy = checkDate.getFullYear();
-        const cm = checkDate.getMonth() + 1;
-        const cd = checkDate.getDate();
-        const cday = checkDate.getDay();
-        
-        if (checkHoliday(cy, cm, cd)) {
-          if (cday === 0) return '振替休日';
-        } else {
-          break;
-        }
-      }
-    }
-    
-    if (day !== 0 && day !== 6) {
-      const prev = new Date(date);
-      prev.setDate(prev.getDate() - 1);
-      const next = new Date(date);
-      next.setDate(next.getDate() + 1);
-      
-      const isPrevHoliday = checkHoliday(prev.getFullYear(), prev.getMonth() + 1, prev.getDate());
-      const isNextHoliday = checkHoliday(next.getFullYear(), next.getMonth() + 1, next.getDate());
-      
-      if (isPrevHoliday && isNextHoliday) return '国民の休日';
-    }
-    
-    return null;
-  };
-
+  // 年齢計算（renalUtils に移行済み）
+  // 祝日判定（holidayUtils に移行済み）
   // カレンダーセル生成
   const getCalendarCells = () => {
     const year = currentMonth.getFullYear();
@@ -651,12 +510,12 @@ export default function PatientList({
     e.preventDefault();
     
     if (!newPatient.id || !newPatient.name || !newPatient.birthDate || !newPatient.height || !newPatient.weight) {
-      alert('必須項目を入力してください。');
+      toast('必須項目を入力してください。');
       return;
     }
     
     if (patients.some(p => p.id === newPatient.id)) {
-      alert(`この患者ID（${newPatient.id}）はすでに登録されています。別のIDを入力してください。`);
+      toast(`この患者ID（${newPatient.id}）はすでに登録されています。別のIDを入力してください。`);
       return;
     }
     
@@ -664,7 +523,7 @@ export default function PatientList({
     
     onAddPatient({
       ...newPatient,
-      age: calculateAge(newPatient.birthDate),
+      age: calcAge(newPatient.birthDate),
       height: parseFloat(newPatient.height),
       weight: parseFloat(newPatient.weight),
       creatinine: newPatient.creatinine ? parseFloat(newPatient.creatinine) : null,
@@ -696,7 +555,7 @@ export default function PatientList({
     e.preventDefault();
     
     if (!editingPatient.name || !editingPatient.birthDate || !editingPatient.height || !editingPatient.weight) {
-      alert('必須項目を入力してください。');
+      toast('必須項目を入力してください。');
       return;
     }
     
@@ -707,7 +566,7 @@ export default function PatientList({
       name: editingPatient.name,
       gender: editingPatient.gender,
       birthDate: editingPatient.birthDate,
-      age: calculateAge(editingPatient.birthDate),
+      age: calcAge(editingPatient.birthDate),
       height: parseFloat(editingPatient.height),
       weight: parseFloat(editingPatient.weight),
       creatinine: editingPatient.creatinine ? parseFloat(editingPatient.creatinine) : null,
@@ -719,13 +578,13 @@ export default function PatientList({
     
     setIsEditing(false);
     setEditingPatient(null);
-    alert('患者情報を更新しました。');
+    toast('患者情報を更新しました。');
   };
 
   // レジメンの割り当て処理
   const handleAssignRegimen = async () => {
     if (!assignRegimenId || !startDate) {
-      alert('レジメンと開始日を選択してください。');
+      toast('レジメンと開始日を選択してください。');
       return;
     }
 
@@ -743,80 +602,14 @@ export default function PatientList({
     const reg = regimens.find(r => r.id === assignRegimenId);
     if (!reg) return;
 
-    // ルンスミオ単剤療法の判定
-    const isLunsumioMonotherapy = (
-      ['R012', 'R013', 'R9045', 'R6365'].includes(reg.id) ||
-      (
-        (reg.name?.includes('ルンスミオ') || reg.name?.includes('モスネツズマブ')) &&
-        (
-          reg.name?.includes('点滴') || reg.name?.includes('皮下') ||
-          reg.drugs?.some(d => 
-            d.route?.includes('点滴') || 
-            d.route?.includes('静脈') || 
-            d.route?.includes('皮下')
-          )
-        ) &&
-        (reg.name?.includes('単剤') || reg.drugs?.length === 1)
-      )
-    );
-
-    // スケジュール生成
-    const schedule = [];
-    const start = new Date(startDate);
-    const dayMs = 24 * 60 * 60 * 1000;
-
-    const startCycle = parseInt(startCycleInput) || 1;
-    const startDay = parseInt(startDayInput) || 1;
-
-    // 指定されたサイクル・Day以降のスケジュールを展開
-    const totalCycles = reg.totalCycles || 4;
-    // ルンスミオの場合は初期作成で見込みを含めて17サイクル分生成
-    const targetCycles = isLunsumioMonotherapy ? 17 : totalCycles;
-    let dayCounter = 0;
-
-    for (let cycle = startCycle; cycle <= targetCycles; cycle++) {
-      const initialDay = (cycle === startCycle) ? startDay : 1;
-      for (let day = initialDay; day <= reg.cycleDays; day++) {
-        const currentDate = new Date(start.getTime() + dayCounter * dayMs);
-        dayCounter++;
-        const dateString = getLocalDateString(currentDate);
-        
-        let isDrugDay = false;
-        // 各薬剤のapplicableDays/applicableCyclesを動的に判定
-        const matchingDrugs = reg.drugs.filter(drug => {
-          if (drug.applicableCycles && drug.applicableCycles.length > 0) {
-            const lookupCycle = (isLunsumioMonotherapy && cycle > 8) ? 8 : cycle;
-            if (!drug.applicableCycles.includes(lookupCycle)) return false;
-          }
-          if (drug.applicableDays && drug.applicableDays.length > 0) {
-            return drug.applicableDays.includes(day);
-          }
-          return reg.drugDays.includes(day);
-        });
-        isDrugDay = matchingDrugs.length > 0;
-
-        let status = 'none';
-        if (isDrugDay) {
-          status = (isLunsumioMonotherapy && cycle >= 9) ? 'provisional' : 'pending';
-        }
-
-        schedule.push({
-          cycleNumber: cycle,
-          dayNumber: day,
-          absoluteDayNumber: schedule.length + 1,
-          date: dateString,
-          isDrugDay,
-          status
-        });
-      }
-    }
+    const { schedule, targetCycles } = generateSchedule(reg, startDate, startCycleInput, startDayInput);
 
     const updatedPatient = {
       ...selectedPatient,
       activeRegimen: {
         regimenId: reg.id,
         startDate,
-        currentCycle: startCycle,
+        currentCycle: parseInt(startCycleInput) || 1,
         totalCycles: targetCycles,
         drugs: JSON.parse(JSON.stringify(reg.drugs))
       },
@@ -826,7 +619,7 @@ export default function PatientList({
 
     onUpdatePatient(updatedPatient);
     setIsChangingRegimen(false);
-    alert('レジメンを割り当てました。');
+    toast('レジメンを割り当てました。');
   };
 
   // レジメンの割り当て解除処理
@@ -846,7 +639,7 @@ export default function PatientList({
       };
       onUpdatePatient(updatedPatient);
       setIsChangingRegimen(false);
-      alert('レジメンの割り当てを解除しました。');
+      toast('レジメンの割り当てを解除しました。');
     }
   };
 
@@ -935,7 +728,7 @@ export default function PatientList({
     
     // アラートの再計算やステータス更新を走らせるために親に投げる
     onUpdatePatient(updatedPatient);
-    alert('血液検査データを更新しました。');
+    toast('血液検査データを更新しました。');
     setLabInput({ creatinine: '', wbc: '', plt: '' });
   };
 
@@ -943,13 +736,13 @@ export default function PatientList({
   const handleUpdateWeightAndRecalculate = () => {
     if (!selectedPatient) return;
     if (!weightInput) {
-      alert('新しい体重を入力してください。');
+      toast('新しい体重を入力してください。');
       return;
     }
     const newWeight = parseFloat(weightInput);
     const newHeight = heightInput ? parseFloat(heightInput) : selectedPatient.height;
     if (isNaN(newWeight) || newWeight <= 0) {
-      alert('有効な体重値を入力してください。');
+      toast('有効な体重値を入力してください。');
       return;
     }
     const newBsa = calculateBSA(newHeight, newWeight);
@@ -961,7 +754,7 @@ export default function PatientList({
       bsa: newBsa
     });
     
-    alert(`体重を ${selectedPatient.weight} kg → ${newWeight} kg、BSAを ${selectedPatient.bsa} → ${newBsa} m² に更新しました。投与量は次回投与時に自動再計算されます。`);
+    toast(`体重を ${selectedPatient.weight} kg → ${newWeight} kg、BSAを ${selectedPatient.bsa} → ${newBsa} m² に更新しました。投与量は次回投与時に自動再計算されます。`);
     setWeightInput('');
     setHeightInput('');
     setShowDosePreview(false);
@@ -974,7 +767,7 @@ export default function PatientList({
       ...selectedPatient,
       comments: commentsInput
     });
-    alert('カルテコメントを保存しました。');
+    toast('カルテコメントを保存しました。');
   };
 
   // フィルタリングされた患者リスト
@@ -1063,7 +856,7 @@ export default function PatientList({
                     {p.name}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                    {p.gender === 'male' ? '男性' : '女性'} / {calculateAge(p.birthDate)}歳 (BSA: {p.bsa} m²)
+                    {p.gender === 'male' ? '男性' : '女性'} / {calcAge(p.birthDate)}歳 (BSA: {p.bsa} m²)
                   </div>
                   {patientRegimen && (
                     <div style={{ fontSize: '0.75rem', color: 'var(--color-primary)', marginTop: '4px', fontWeight: '600' }}>
@@ -1441,7 +1234,7 @@ export default function PatientList({
                   <div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>基本情報</div>
                     <div style={{ fontSize: '1.1rem', fontWeight: '700', marginTop: '4px' }}>
-                      {selectedPatient.gender === 'male' ? '男性' : '女性'} / {calculateAge(selectedPatient.birthDate)}歳
+                      {selectedPatient.gender === 'male' ? '男性' : '女性'} / {calcAge(selectedPatient.birthDate)}歳
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>({selectedPatient.birthDate} 生まれ)</div>
                   </div>
@@ -1827,7 +1620,7 @@ export default function PatientList({
                                     </td>
                                     <td>{drug.route}</td>
                                     <td className="num-tabular" style={{ color: 'var(--color-secondary)', fontWeight: '700', fontSize: '1rem' }}>
-                                      {formatDoseString(calculatedDose, drug.name)}
+                                      {formatDoseStr(calculatedDose, drug.name)}
                                     </td>
                                     <td>
                                       <div style={{ fontSize: '0.8rem', color: 'var(--color-text-dark)' }}>
@@ -2124,7 +1917,7 @@ export default function PatientList({
                                                   ...selectedPatient,
                                                   schedule: updatedSchedule
                                                 });
-                                                alert('副作用推奨に基づき、スケジュールを7日間延期（押し出し）しました。');
+                                                toast('副作用推奨に基づき、スケジュールを7日間延期（押し出し）しました。');
                                                 setSelectedEvent(null);
                                               }}
                                             >
@@ -2148,7 +1941,7 @@ export default function PatientList({
                                                   ...selectedPatient,
                                                   schedule: updatedSchedule
                                                 });
-                                                alert('副作用推奨に基づき、次回（本日の予定）の投与量を 20% 減量（1段階減量）に設定しました。');
+                                                toast('副作用推奨に基づき、次回（本日の予定）の投与量を 20% 減量（1段階減量）に設定しました。');
                                                 setSelectedEvent(null);
                                               }}
                                             >
@@ -2197,7 +1990,7 @@ export default function PatientList({
                                           ...selectedPatient,
                                           schedule: updatedSchedule
                                         });
-                                        alert('この日程以降のスケジュールを ' + days + ' 日間延期しました。');
+                                        toast('この日程以降のスケジュールを ' + days + ' 日間延期しました。');
                                         setSelectedEvent(null);
                                       }}
                                     >
@@ -2255,7 +2048,7 @@ export default function PatientList({
                                         });
                                         updatedSchedule.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                                         onUpdatePatient({ ...selectedPatient, schedule: updatedSchedule });
-                                        alert(slideRest ? ('予定日を修正し、後続の日程も ' + diffDays + ' 日分シフトしました。') : '選択した日の予定日を修正しました。');
+                                        toast(slideRest ? ('予定日を修正し、後続の日程も ' + diffDays + ' 日分シフトしました。') : '選択した日の予定日を修正しました。');
                                         setSelectedEvent(null);
                                       }}
                                     >
@@ -2274,7 +2067,7 @@ export default function PatientList({
                                           ...s, status: 'skipped'
                                         } : s);
                                         onUpdatePatient({ ...selectedPatient, schedule: updatedSchedule });
-                                        alert('今回の予定を休薬（スキップ）に設定しました。');
+                                        toast('今回の予定を休薬（スキップ）に設定しました。');
                                         setSelectedEvent(null);
                                       }}
                                     >
@@ -2369,7 +2162,7 @@ export default function PatientList({
                                           schedule: updatedSchedule,
                                           ...(isToday ? { todayStatus: 'completed' } : {})
                                         });
-                                        alert('投与を実施済み（完了）に設定しました。');
+                                        toast('投与を実施済み（完了）に設定しました。');
                                         setSelectedEvent(null);
                                       }}
                                     >
@@ -2504,7 +2297,7 @@ export default function PatientList({
                                         } : s);
                                         onUpdatePatient({ ...selectedPatient, schedule: updatedSchedule });
                                         const omittedNames = (selectedEvent.drugOrigIndices || []).map((origIdx, dIdx) => preOmittedDrugIndices.includes(origIdx) ? selectedEvent.drugs[dIdx]?.name : null).filter(Boolean);
-                                        alert('中止予定を登録しました：' + omittedNames.join('、'));
+                                        toast('中止予定を登録しました：' + omittedNames.join('、'));
                                         setSelectedEvent(null);
                                       }}
                                     >
@@ -2524,7 +2317,7 @@ export default function PatientList({
                                       ...s, status: 'pending'
                                     } : s);
                                     onUpdatePatient({ ...selectedPatient, schedule: updatedSchedule });
-                                    alert('投与予定に戻しました。');
+                                    toast('投与予定に戻しました。');
                                     setSelectedEvent(null);
                                   }}
                                 >
@@ -2579,7 +2372,7 @@ export default function PatientList({
                                           schedule: updatedSchedule,
                                           ...(isToday ? { todayStatus: 'pending' } : {})
                                         });
-                                        alert('投与予定（未実施）に戻しました。');
+                                        toast('投与予定（未実施）に戻しました。');
                                         setSelectedEvent(null);
                                       }
                                     }}

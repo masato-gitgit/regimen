@@ -1,5 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Shield, Calendar, Clock, List, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { getLocalDateString } from '../utils/dateUtils';
+import { useToast } from '../hooks/useToast';
+import { v4 as uuidv4 } from 'uuid';
 
 const formatCyclesArray = (arr) => {
   if (!arr || arr.length === 0) return '';
@@ -52,7 +55,9 @@ const parseCyclesString = (str) => {
   return result.length > 0 ? [...new Set(result)].sort((a, b) => a - b) : undefined;
 };
 
-export default function RegimenList({ regimens, drugsMaster, onAddRegimen, onUpdateRegimen, onDeleteRegimen, onUpdateRegimens }) {
+export default function RegimenList({
+ regimens, drugsMaster, onAddRegimen, onUpdateRegimen, onDeleteRegimen, onUpdateRegimens }) {
+  const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [selectedRegimenId, setSelectedRegimenId] = useState('');
   const [editingRegimenId, setEditingRegimenId] = useState(null);
@@ -95,13 +100,6 @@ export default function RegimenList({ regimens, drugsMaster, onAddRegimen, onUpd
     return getFirstMondayOfMonth(calendarDate.getFullYear(), calendarDate.getMonth());
   }, [calendarDate]);
 
-  const getLocalDateString = (d) => {
-    if (!(d instanceof Date)) return '';
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   const getCalendarCells = () => {
     const year = calendarDate.getFullYear();
@@ -330,7 +328,7 @@ export default function RegimenList({ regimens, drugsMaster, onAddRegimen, onUpd
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!newRegimen.name || !newRegimen.cancerType || drugs.some(d => !d.drugId || d.doseValue === '')) {
-      alert('必須項目をすべて入力し、薬剤情報を正しく登録してください。');
+      toast('必須項目をすべて入力し、薬剤情報を正しく登録してください。');
       return;
     }
 
@@ -351,7 +349,7 @@ export default function RegimenList({ regimens, drugsMaster, onAddRegimen, onUpd
     }
 
     const regimenData = {
-      id: editingRegimenId || `R${Date.now().toString().slice(-4)}`,
+      id: editingRegimenId || `R-${uuidv4().split('-')[0]}`,
       name: newRegimen.name,
       cancerType: newRegimen.cancerType,
       cycleDays: parseInt(newRegimen.cycleDays),
@@ -392,10 +390,10 @@ export default function RegimenList({ regimens, drugsMaster, onAddRegimen, onUpd
 
     if (editingRegimenId) {
       onUpdateRegimen(regimenData);
-      alert('レジメンを修正しました。');
+      toast('レジメンを修正しました。');
     } else {
       onAddRegimen(regimenData);
-      alert('新しいレジメンを登録しました。');
+      toast('新しいレジメンを登録しました。');
     }
 
     handleCancel();
