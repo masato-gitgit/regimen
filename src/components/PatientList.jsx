@@ -2196,8 +2196,13 @@ export default function PatientList({
                                           type="button" 
                                           className="btn btn-primary" 
                                           style={{ width: '100%', padding: '8px', fontSize: '0.85rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
-                                          onClick={() => {
-                                            if (window.confirm('これ以降の投与間隔を2週間に延長しますか？（部分奏効以上の効果持続が確認されている必要があります）')) {
+                                          onClick={async () => {
+                                            const ok = await confirm({ 
+                                              title: '投与間隔の延長', 
+                                              message: 'これ以降の投与間隔を2週間に延長しますか？（部分奏効以上の効果持続が確認されている必要があります）',
+                                              confirmLabel: '延長する'
+                                            });
+                                            if (ok) {
                                               handleUpdateTecveyriInterval(2, selectedEvent.date);
                                             }
                                           }}
@@ -2233,12 +2238,17 @@ export default function PatientList({
                                           type="button" 
                                           className="btn btn-primary" 
                                           style={{ width: '100%', padding: '8px', fontSize: '0.85rem', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
-                                          onClick={() => {
+                                          onClick={async () => {
                                             const weeks = getWeeksSinceCombinationStart();
                                             const confirmText = weeks >= 23 
                                               ? 'これ以降の投与間隔を4週間に延長しますか？（23週目以降の標準スケジュール延長）' 
                                               : 'これ以降の投与間隔を4週間に延長しますか？（15週目以降で最良部分奏効以上の効果持続が確認されている必要があります）';
-                                            if (window.confirm(confirmText)) {
+                                            const ok = await confirm({
+                                              title: '投与間隔の延長',
+                                              message: confirmText,
+                                              confirmLabel: '延長する'
+                                            });
+                                            if (ok) {
                                               handleUpdateCombinationInterval(4, selectedEvent.date);
                                             }
                                           }}
