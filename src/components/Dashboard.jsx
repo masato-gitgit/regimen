@@ -3,6 +3,7 @@ import { Calendar, Users, AlertTriangle, CheckCircle, Clock, ArrowRight } from '
 import { calcAndFormatDoseStr } from '../utils/doseUtils';
 import { getLocalDateString } from '../utils/dateUtils';
 import { getTodayStatus } from '../utils/scheduleUtils';
+import { getApplicableDrugs } from '../utils/drugMatching';
 
 export default function Dashboard({ patients, regimens, alerts, onNavigate, onSelectPatient }) {
   const today = getLocalDateString(new Date());
@@ -145,24 +146,12 @@ export default function Dashboard({ patients, regimens, alerts, onNavigate, onSe
                         </td>
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            {(patient.activeRegimen?.drugs || [])
-                              .filter(drug => {
-                                const cycleNumber = todayItem?.cycleNumber || patient.activeRegimen.currentCycle || 1;
-                                const dayNumber = todayItem?.dayNumber || 1;
-                                
-                                // 適用サイクル制限の判定
-                                if (drug.applicableCycles && drug.applicableCycles.length > 0) {
-                                  if (!drug.applicableCycles.includes(cycleNumber)) {
-                                    return false;
-                                  }
-                                }
-                                // 対象Day制限の判定
-                                if (drug.applicableDays && drug.applicableDays.length > 0) {
-                                  return drug.applicableDays.includes(dayNumber);
-                                }
-                                // どちらも設定がない場合はレジメン全体の投与日に従う
-                                return activeReg?.drugDays?.includes(dayNumber) ?? true;
-                              })
+                            {getApplicableDrugs(
+                              patient.activeRegimen?.drugs || [],
+                              todayItem?.cycleNumber || patient.activeRegimen.currentCycle || 1,
+                              todayItem?.dayNumber || 1,
+                              activeReg?.drugDays || []
+                            )
                               .map((drug, i) => {
                                 // 投与量計算（共通ユーティリティで統一）
                                 const dose = calcAndFormatDoseStr(drug, patient);
