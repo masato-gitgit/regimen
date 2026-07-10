@@ -10,7 +10,7 @@ import DrugList from './components/DrugList';
 import ConfirmModal from './components/ConfirmModal';
 import { LayoutDashboard, Users, BookOpen, ShieldAlert, Activity, ClipboardList, Database, Calendar, Pill } from 'lucide-react';
 import { calculateEGFR } from './utils/renalUtils';
-import { safeSetLocalStorage } from './utils/storageUtils';
+import { safeSetLocalStorage, safeGetLocalStorage } from './utils/storageUtils';
 import { useConfirm } from './hooks/useConfirm';
 import { useToast } from './hooks/useToast';
 import { runMigrations } from './utils/migrations';
@@ -47,8 +47,8 @@ export default function App() {
 
   // 初期ロード
   useEffect(() => {
-    const storedPatients = localStorage.getItem('onco_patients');
-    const storedRegimens = localStorage.getItem('onco_regimens');
+    const storedPatients = safeGetLocalStorage('onco_patients');
+    const storedRegimens = safeGetLocalStorage('onco_regimens');
     const errors = [];
 
     // ---- マイグレーションバージョン管理 ----
@@ -57,7 +57,7 @@ export default function App() {
     let currentRegimens = [];
     if (storedRegimens) {
       try {
-        currentRegimens = JSON.parse(storedRegimens);
+        currentRegimens = storedRegimens;
         if (!Array.isArray(currentRegimens)) throw new Error('not array');
       } catch (e) {
         console.error('onco_regimens のデータが破損しています:', e);
@@ -71,7 +71,7 @@ export default function App() {
     let patientsCleaned = false;
     if (storedPatients) {
       try {
-        currentPatients = JSON.parse(storedPatients);
+        currentPatients = storedPatients;
         if (!Array.isArray(currentPatients)) throw new Error('not array');
       } catch (e) {
         console.error('onco_patients のデータが破損しています:', e);
@@ -107,11 +107,11 @@ export default function App() {
     }
 
     // 薬剤マスタのロードとマイグレーション
-    const storedDrugs = localStorage.getItem('onco_drugs');
+    const storedDrugs = safeGetLocalStorage('onco_drugs');
     let currentDrugs = [];
     if (storedDrugs) {
       try {
-        currentDrugs = JSON.parse(storedDrugs);
+        currentDrugs = storedDrugs;
         if (!Array.isArray(currentDrugs)) throw new Error('not array');
       } catch (e) {
         console.error('onco_drugs のデータが破損しています:', e);
