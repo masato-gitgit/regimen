@@ -127,13 +127,9 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
     return checks[key];
   });
 
+  // 実際の保存処理
   const handleSaveStatus = (status) => {
     if (!todayScheduleItem) return;
-    _applySaveStatus(status);
-  };
-
-  // 実際の保存処理
-  const _applySaveStatus = (status) => {
     const updatedSchedule = selectedPatient.schedule.map(s => {
       if (s.date === today && s.isDrugDay) {
         return {
