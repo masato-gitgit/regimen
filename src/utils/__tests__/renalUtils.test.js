@@ -18,9 +18,8 @@ describe('renalUtils', () => {
     const birthDate = `${currentYear - 60}-01-01`;
     const egfr = calculateEGFR(1.0, 'male', birthDate);
     expect(typeof egfr).toBe('number');
-    // 大体の値を確認 (59 ~ 61)
-    expect(egfr).toBeGreaterThan(50);
-    expect(egfr).toBeLessThan(70);
+    // eGFR = 194 * 1.0^-1.094 * 60^-0.287 ≈ 59.91
+    expect(egfr).toBeCloseTo(59.91, 1);
   });
 
   it('calculateEGFR should calculate correctly for female', () => {
@@ -30,6 +29,8 @@ describe('renalUtils', () => {
     const egfrM = calculateEGFR(1.0, 'male', birthDate);
     const egfrF = calculateEGFR(1.0, 'female', birthDate);
     expect(egfrF).toBeLessThan(egfrM);
+    // 女性の係数 0.739: 59.906 * 0.739 ≈ 44.27
+    expect(egfrF).toBeCloseTo(44.27, 1);
   });
 
   it('calculateEGFR should return null if missing parameters', () => {

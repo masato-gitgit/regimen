@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Edit2, Search, AlertCircle, FileText, Check, X } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
-import { v4 as uuidv4 } from 'uuid';
+
 
 export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, onUpdateDrug, onDeleteDrug, confirm }) {
   const { toast } = useToast();
@@ -100,7 +100,7 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
     }
 
     const drugData = {
-      id: editingDrugId || `D-${uuidv4().split('-')[0]}`,
+      id: editingDrugId || `D-${crypto.randomUUID().split('-')[0]}`,
       name: formData.name.trim(),
       route: formData.route,
       doseType: formData.doseType,

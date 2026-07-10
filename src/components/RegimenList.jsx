@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Shield, Calendar, Clock, List, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { getLocalDateString } from '../utils/dateUtils';
 import { useToast } from '../hooks/useToast';
-import { v4 as uuidv4 } from 'uuid';
+
 import { PROTOCOL_TYPES, guessProtocolType } from '../utils/regimenProtocols';
 
 const formatCyclesArray = (arr) => {
@@ -351,7 +351,7 @@ export default function RegimenList({
     }
 
     const regimenData = {
-      id: editingRegimenId || `R-${uuidv4().split('-')[0]}`,
+      id: editingRegimenId || `R-${crypto.randomUUID().split('-')[0]}`,
       name: newRegimen.name,
       cancerType: newRegimen.cancerType,
       protocolType: newRegimen.protocolType || guessProtocolType(newRegimen.name) || null,
