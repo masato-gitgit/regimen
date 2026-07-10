@@ -8,7 +8,7 @@ import { useToast } from '../hooks/useToast';
 
 export default function Checklist({ patients, regimens, selectedPatientId, onUpdatePatient, onSelectPatient, onNavigate }) {
   const selectedPatient = patients.find(p => p.id === selectedPatientId);
-  const todayStatus = todayStatus;
+  const todayStatus = getTodayStatus(selectedPatient);
   const today = getLocalDateString(new Date());
   const { toast } = useToast();
 
