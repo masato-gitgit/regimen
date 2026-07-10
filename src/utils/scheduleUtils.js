@@ -14,21 +14,7 @@ import { PROTOCOL_TYPES } from './regimenProtocols';
 export const generateSchedule = (regimen, startDate, startCycle = 1, startDay = 1) => {
   const isLunsumioMonotherapy = (
     regimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_SC ||
-    regimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV ||
-    // V4移行完了後に削除予定のレガシーID判定
-    ['R012', 'R013', 'R9045', 'R6365'].includes(regimen.id) ||
-    (
-      (regimen.name?.includes('ルンスミオ') || regimen.name?.includes('モスネツズマブ')) &&
-      (
-        regimen.name?.includes('点滴') || regimen.name?.includes('皮下') ||
-        regimen.drugs?.some(d => 
-          d.route?.includes('点滴') || 
-          d.route?.includes('静脈') || 
-          d.route?.includes('皮下')
-        )
-      ) &&
-      (regimen.name?.includes('単剤') || regimen.drugs?.length === 1)
-    )
+    regimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV
   );
 
   const schedule = [];
