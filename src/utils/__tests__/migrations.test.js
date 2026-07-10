@@ -14,9 +14,9 @@ describe('migrations', () => {
       { id: '3', name: '未登録の テクベイリ 併用' }, // TECVAYLI
     ];
 
-    const result = runMigrations(mockRegimens, [], 3); // V3 から V4 へのマイグレーションを実行
+    const result = runMigrations(mockRegimens, [], 3); // V3 から V5 へのマイグレーションを実行
 
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
     expect(result.updated).toBe(true);
 
     const regimens = result.regimens;
@@ -30,9 +30,28 @@ describe('migrations', () => {
     expect(regimens.find(r => r.id === '3').protocolType).toBe(PROTOCOL_TYPES.TECVAYLI);
   });
 
+
+  it('should remove legacy todayStatus field in V5 migration', () => {
+    const mockPatients = [
+      { id: 'p1', name: 'Patient A', todayStatus: 'completed' },
+      { id: 'p2', name: 'Patient B', todayStatus: 'pending', age: 60 },
+      { id: 'p3', name: 'Patient C', age: 70 } // No todayStatus
+    ];
+
+    const result = runMigrations([], mockPatients, 4);
+
+    expect(result.version).toBe(5);
+    expect(result.updated).toBe(true);
+    
+    expect('todayStatus' in result.patients[0]).toBe(false);
+    expect('todayStatus' in result.patients[1]).toBe(false);
+    expect(result.patients[1].age).toBe(60);
+    expect(result.patients[2].age).toBe(70);
+  });
+
   it('should not update if already at latest version', () => {
-    const result = runMigrations([], [], 4);
+    const result = runMigrations([], [], 5);
     expect(result.updated).toBe(false);
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
   });
 });

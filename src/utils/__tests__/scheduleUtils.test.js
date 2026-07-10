@@ -1,8 +1,37 @@
 import { describe, it, expect } from 'vitest';
-import { generateSchedule } from '../scheduleUtils';
+import { generateSchedule, getTodayStatus } from '../scheduleUtils';
 import { getLocalDateString } from '../dateUtils';
 
 describe('scheduleUtils', () => {
+  it('should derive todayStatus correctly using getTodayStatus', () => {
+    const mockPatient = {
+      schedule: [
+        { date: '2026-07-10', isDrugDay: true, status: 'completed' },
+        { date: '2026-07-11', isDrugDay: false },
+        { date: '2026-07-12', isDrugDay: true, status: 'pending' },
+        { date: '2026-07-13', isDrugDay: true } // status undefined (defaults to pending)
+      ]
+    };
+
+    // 1. 今日が投与日で、ステータスが completed
+    expect(getTodayStatus(mockPatient, '2026-07-10')).toBe('completed');
+
+    // 2. 今日が非投与日
+    expect(getTodayStatus(mockPatient, '2026-07-11')).toBe('none');
+
+    // 3. 今日が投与日で、ステータスが pending (日付を跨いだケースなど)
+    expect(getTodayStatus(mockPatient, '2026-07-12')).toBe('pending');
+
+    // 4. status が未定義の投与日
+    expect(getTodayStatus(mockPatient, '2026-07-13')).toBe('pending');
+
+    // 5. schedule が空、あるいは存在しない日付
+    expect(getTodayStatus(mockPatient, '2026-08-01')).toBe('none');
+    expect(getTodayStatus({ schedule: [] }, '2026-07-10')).toBe('none');
+    expect(getTodayStatus({}, '2026-07-10')).toBe('none');
+    expect(getTodayStatus(null, '2026-07-10')).toBe('none');
+  });
+
   it('should generate correct schedule for 21-day cycle x 8 cycles', () => {
     const regimen = {
       id: 'test-001',
