@@ -1,4 +1,4 @@
-import { getLocalDateString } from './dateUtils';
+import { getLocalDateString, parseLocalDate, addDays } from './dateUtils';
 import { PROTOCOL_TYPES } from './regimenProtocols';
 
 /**
@@ -30,8 +30,7 @@ export const generateSchedule = (regimen, startDate, startCycle = 1, startDay = 
   );
 
   const schedule = [];
-  const start = new Date(startDate);
-  const dayMs = 24 * 60 * 60 * 1000;
+  const start = parseLocalDate(startDate);
 
   const sCycle = parseInt(startCycle, 10) || 1;
   const sDay = parseInt(startDay, 10) || 1;
@@ -45,7 +44,7 @@ export const generateSchedule = (regimen, startDate, startCycle = 1, startDay = 
   for (let cycle = sCycle; cycle <= targetCycles; cycle++) {
     const initialDay = (cycle === sCycle) ? sDay : 1;
     for (let day = initialDay; day <= regimen.cycleDays; day++) {
-      const currentDate = new Date(start.getTime() + dayCounter * dayMs);
+      const currentDate = addDays(start, dayCounter);
       dayCounter++;
       const dateString = getLocalDateString(currentDate);
       

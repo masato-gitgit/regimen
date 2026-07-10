@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, UserPlus, FileText, CheckCircle, AlertTriangle, Plus, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { calculateEGFR, calcAge } from '../utils/renalUtils';
 import { formatDose, formatDoseStr } from '../utils/doseUtils';
-import { getLocalDateString } from '../utils/dateUtils';
+import { getLocalDateString, parseLocalDate, addDays } from '../utils/dateUtils';
 import { PROTOCOL_TYPES } from '../utils/regimenProtocols';
 import { getJapaneseHoliday } from '../utils/holidayUtils';
 import { generateSchedule } from '../utils/scheduleUtils';
@@ -138,7 +138,7 @@ export default function PatientList({
     // 完了実績と未来の予定を分割
     const completedPart = schedule.slice(0, targetIdx);
 
-    const baseDate = new Date(targetDateStr);
+    const baseDate = parseLocalDate(targetDateStr);
 
     let offsetDaysList = [];
     let dayNumbersList = [];
@@ -155,8 +155,7 @@ export default function PatientList({
 
     // 新しい未来スケジュール
     const newFutureItems = offsetDaysList.map((offset, i) => {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + offset);
+      const d = addDays(baseDate, offset);
       return {
         date: getLocalDateString(d),
         dayNumber: dayNumbersList[i],
@@ -185,7 +184,7 @@ export default function PatientList({
 
     // 完了実績と未来の予定を分割
     const completedPart = schedule.slice(0, targetIdx);
-    const baseDate = new Date(targetDateStr);
+    const baseDate = parseLocalDate(targetDateStr);
     const dayMs = 24 * 60 * 60 * 1000;
 
     // 再開後は1C（Day 1, 8, 15）から再漸増
@@ -239,7 +238,7 @@ export default function PatientList({
     if (targetIdx === -1) return;
 
     const completedPart = schedule.slice(0, targetIdx);
-    const baseDate = new Date(targetDateStr);
+    const baseDate = parseLocalDate(targetDateStr);
     const dayMs = 24 * 60 * 60 * 1000;
 
     const newFutureItems = [];
@@ -318,7 +317,7 @@ export default function PatientList({
 
     const completedPart = schedule.slice(0, targetIdx);
     const futurePart = schedule.slice(targetIdx);
-    const baseDate = new Date(targetDateStr);
+    const baseDate = parseLocalDate(targetDateStr);
     const dayMs = 24 * 60 * 60 * 1000;
     
     const updatedFuture = [];
@@ -372,7 +371,7 @@ export default function PatientList({
 
     const completedPart = schedule.slice(0, targetIdx);
     const futurePart = schedule.slice(targetIdx);
-    const baseDate = new Date(targetDateStr);
+    const baseDate = parseLocalDate(targetDateStr);
     const dayMs = 24 * 60 * 60 * 1000;
     
     const updatedFuture = [];
