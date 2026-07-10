@@ -131,46 +131,8 @@ export default function PatientList({
   // テクベイリ休薬プロトコル適用
   const handleApplyProtocol = (targetDoseValue, isReStepUpNeeded, targetDateStr) => {
     if (!selectedPatient) return;
-    const schedule = [...(selectedPatient.schedule || [])];
-    const targetIdx = schedule.findIndex(s => s.date === targetDateStr);
-    if (targetIdx === -1) return;
-
-    // 完了実績と未来の予定を分割
-    const completedPart = schedule.slice(0, targetIdx);
-
-    const baseDate = parseLocalDate(targetDateStr);
-
-    let offsetDaysList = [];
-    let dayNumbersList = [];
-
-    if (targetDoseValue === 0.06) {
-      // 0.06 からの再漸増：今回(Day1)、3日後(Day4)、7日後(Day8)、14日後(Day15)、21日後(Day22)
-      offsetDaysList = [0, 3, 7, 14, 21];
-      dayNumbersList = [1, 4, 8, 15, 22];
-    } else if (targetDoseValue === 0.3) {
-      // 0.3 からの再漸増：今回(Day4)、4日後(Day8)、11日後(Day15)、18日後(Day22)
-      offsetDaysList = [0, 4, 11, 18];
-      dayNumbersList = [4, 8, 15, 22];
-    }
-
-    // 新しい未来スケジュール
-    const newFutureItems = offsetDaysList.map((offset, i) => {
-      const d = addDays(baseDate, offset);
-      return {
-        date: getLocalDateString(d),
-        dayNumber: dayNumbersList[i],
-        isDrugDay: true,
-        status: 'pending'
-      };
-    });
-
-    const updatedSchedule = [...completedPart, ...newFutureItems];
-
-    onUpdatePatient({
-      ...selectedPatient,
-      schedule: updatedSchedule
-    });
-
+    const newSchedule = applyTecvayliRestart(selectedPatient.schedule || [], targetDateStr, targetDoseValue);
+    onUpdatePatient({ ...selectedPatient, schedule: newSchedule });
     toast(`テクベイリ再開プロトコル（再開用量: ${targetDoseValue} mg/kg）を適用し、スケジュールを再構成しました。`);
     setSelectedEvent(null);
   };
@@ -178,54 +140,15 @@ export default function PatientList({
   // ルンスミオ皮下注再開プロトコル適用
   const handleApplyLunsumioProtocol = (targetDateStr) => {
     if (!selectedPatient) return;
-    const schedule = [...(selectedPatient.schedule || [])];
-    const targetIdx = schedule.findIndex(s => s.date === targetDateStr);
-    if (targetIdx === -1) return;
-
-    // 完了実績と未来の予定を分割
-    const completedPart = schedule.slice(0, targetIdx);
-    const baseDate = parseLocalDate(targetDateStr);
-    const dayMs = 24 * 60 * 60 * 1000;
-
-    // 再開後は1C（Day 1, 8, 15）から再漸増
-    const newFutureItems = [];
-    let dayCounter = 0;
-    
-    for (let cycle = 1; cycle <= 8; cycle++) {
-      for (let day = 1; day <= 21; day++) {
-        dayCounter++;
-        const currentDate = new Date(baseDate.getTime() + (dayCounter - 1) * dayMs);
-        const dateString = getLocalDateString(currentDate);
-        
-        let isDrugDay = false;
-        if (cycle === 1) {
-          isDrugDay = [1, 8, 15].includes(day);
-        } else {
-          isDrugDay = (day === 1);
-        }
-
-        newFutureItems.push({
-          cycleNumber: cycle,
-          dayNumber: day,
-          absoluteDayNumber: dayCounter + completedPart.length,
-          date: dateString,
-          isDrugDay,
-          status: isDrugDay ? 'pending' : 'none'
-        });
-      }
-    }
-
-    const updatedSchedule = [...completedPart, ...newFutureItems];
-
+    const newSchedule = applyLunsumioRestart(selectedPatient.schedule || [], targetDateStr);
     onUpdatePatient({
       ...selectedPatient,
-      schedule: updatedSchedule,
+      schedule: newSchedule,
       activeRegimen: {
         ...selectedPatient.activeRegimen,
         totalCycles: 8
       }
     });
-
     toast('ルンスミオ再開プロトコル（初回5mgから再漸増）を適用し、スケジュールを再構成しました。');
     setSelectedEvent(null);
   };
@@ -233,78 +156,17 @@ export default function PatientList({
   // タービー再開プロトコル適用
   const handleApplyTalquetamabProtocol = (targetDoseValue, regId, targetDateStr) => {
     if (!selectedPatient) return;
-    const schedule = [...(selectedPatient.schedule || [])];
-    const targetIdx = schedule.findIndex(s => s.date === targetDateStr);
-    if (targetIdx === -1) return;
-
-    const completedPart = schedule.slice(0, targetIdx);
-    const baseDate = parseLocalDate(targetDateStr);
-    const dayMs = 24 * 60 * 60 * 1000;
-
-    const newFutureItems = [];
-    let dayCounter = 0;
-    
-    let startCycle = 1;
-    let startDay = 1;
-    
-    if (targetDoseValue === 0.01) {
-      startDay = 1;
-    } else if (targetDoseValue === 0.06) {
-      startDay = 4;
-    } else if (targetDoseValue === 0.4) {
-      startDay = 8;
-    } else if (targetDoseValue === 0.8) {
-      startDay = 11;
-    }
-
-    const reg = regimens.find(r => r.id === regId);
-    const cycleDays = reg ? reg.cycleDays : 28;
-    const totalCycles = reg ? reg.totalCycles : 6;
-
-    let tempDate = new Date(baseDate);
-
-    for (let cycle = startCycle; cycle <= totalCycles; cycle++) {
-      const cycleStartDay = (cycle === startCycle) ? startDay : 1;
-      for (let day = cycleStartDay; day <= cycleDays; day++) {
-        dayCounter++;
-        
-        let isDrugDay = false;
-        const isWeekly = reg.drugs?.some(d => d.applicableDays?.includes(22));
-        if (isWeekly) {
-          if (cycle === 1) isDrugDay = [1, 4, 8, 15, 22].includes(day);
-          else isDrugDay = [1, 8, 15, 22].includes(day);
-        } else {
-          if (cycle === 1) isDrugDay = [1, 4, 8, 11, 25].includes(day);
-          else isDrugDay = [11, 25].includes(day);
-        }
-        
-        const dateString = getLocalDateString(tempDate);
-
-        newFutureItems.push({
-          cycleNumber: cycle,
-          dayNumber: day,
-          absoluteDayNumber: dayCounter + completedPart.length,
-          date: dateString,
-          isDrugDay,
-          status: isDrugDay ? 'pending' : 'none'
-        });
-
-        // 1日進める
-        tempDate.setDate(tempDate.getDate() + 1);
-      }
-    }
-
-    const updatedSchedule = [...completedPart, ...newFutureItems];
-
+    // R014 / R015 がそれぞれ毎週・隔週を表す。あるいはレジメンの情報を直接見るべきだが、既存ロジックを踏襲
+    const isWeekly = (regId === 'R014' || regId === 'R8321');
+    const newSchedule = applyTalquetamabRestart(selectedPatient.schedule || [], targetDateStr, targetDoseValue, isWeekly);
     onUpdatePatient({
       ...selectedPatient,
-      schedule: updatedSchedule,
+      schedule: newSchedule,
       activeRegimen: {
         ...selectedPatient.activeRegimen,
-        totalCycles: totalCycles
+        totalCycles: isWeekly ? 10 : 8
       }
     });
-
     toast(`タービー再開プロトコル（再開用量: ${targetDoseValue} mg/kg）を適用し、スケジュールを再構成しました。`);
     setSelectedEvent(null);
   };
@@ -312,51 +174,15 @@ export default function PatientList({
   // テクベイリの投与間隔変更（1週間隔 ⇔ 2週間隔）
   const handleUpdateTecveyriInterval = (intervalWeeks, targetDateStr) => {
     if (!selectedPatient) return;
-    const schedule = [...(selectedPatient.schedule || [])];
-    const targetIdx = schedule.findIndex(s => s.date === targetDateStr);
-    if (targetIdx === -1) return;
-
-    const completedPart = schedule.slice(0, targetIdx);
-    const futurePart = schedule.slice(targetIdx);
-    const baseDate = parseLocalDate(targetDateStr);
-    const dayMs = 24 * 60 * 60 * 1000;
-    
-    const updatedFuture = [];
-    let currentOffset = 0;
-    
-    for (let i = 0; i < futurePart.length; i++) {
-      const origItem = futurePart[i];
-      const currentDate = new Date(baseDate.getTime() + currentOffset * dayMs);
-      const dateString = getLocalDateString(currentDate);
-      
-      let isDrugDay = false;
-      if (intervalWeeks === 2) {
-        isDrugDay = (origItem.dayNumber === 1 || origItem.dayNumber === 15);
-      } else {
-        isDrugDay = (origItem.dayNumber === 1 || origItem.dayNumber === 8 || origItem.dayNumber === 15 || origItem.dayNumber === 22);
-      }
-      
-      updatedFuture.push({
-        ...origItem,
-        date: dateString,
-        isDrugDay,
-        status: isDrugDay ? 'pending' : 'none'
-      });
-      
-      currentOffset++;
-    }
-    
-    const updatedSchedule = [...completedPart, ...updatedFuture];
-    
+    const newSchedule = changeTecvayliInterval(selectedPatient.schedule || [], targetDateStr, intervalWeeks);
     onUpdatePatient({
       ...selectedPatient,
-      schedule: updatedSchedule,
+      schedule: newSchedule,
       activeRegimen: {
         ...selectedPatient.activeRegimen,
         intervalWeeks
       }
     });
-    
     toast(intervalWeeks === 2 
       ? 'これ以降の投与間隔を2週間に延長しました（各サイクルのDay 1、Day 15に予定を再配置しました）。' 
       : 'これ以降の投与間隔を通常の毎週（1週間隔）に戻しました。');
@@ -366,51 +192,15 @@ export default function PatientList({
   // タービー・テクベイリ併用の投与間隔変更（2週間隔 ⇔ 4週間隔）
   const handleUpdateCombinationInterval = (intervalWeeks, targetDateStr) => {
     if (!selectedPatient) return;
-    const schedule = [...(selectedPatient.schedule || [])];
-    const targetIdx = schedule.findIndex(s => s.date === targetDateStr);
-    if (targetIdx === -1) return;
-
-    const completedPart = schedule.slice(0, targetIdx);
-    const futurePart = schedule.slice(targetIdx);
-    const baseDate = parseLocalDate(targetDateStr);
-    const dayMs = 24 * 60 * 60 * 1000;
-    
-    const updatedFuture = [];
-    let currentOffset = 0;
-    
-    for (let i = 0; i < futurePart.length; i++) {
-      const origItem = futurePart[i];
-      const currentDate = new Date(baseDate.getTime() + currentOffset * dayMs);
-      const dateString = getLocalDateString(currentDate);
-      
-      let isDrugDay = false;
-      if (intervalWeeks === 4) {
-        isDrugDay = (origItem.dayNumber === 11);
-      } else {
-        isDrugDay = (origItem.dayNumber === 11 || origItem.dayNumber === 25);
-      }
-      
-      updatedFuture.push({
-        ...origItem,
-        date: dateString,
-        isDrugDay,
-        status: isDrugDay ? 'pending' : 'none'
-      });
-      
-      currentOffset++;
-    }
-    
-    const updatedSchedule = [...completedPart, ...updatedFuture];
-    
+    const newSchedule = changeCombinationInterval(selectedPatient.schedule || [], targetDateStr, intervalWeeks);
     onUpdatePatient({
       ...selectedPatient,
-      schedule: updatedSchedule,
+      schedule: newSchedule,
       activeRegimen: {
         ...selectedPatient.activeRegimen,
         intervalWeeks
       }
     });
-    
     toast(intervalWeeks === 4 
       ? 'これ以降の投与間隔を4週間に延長しました（各サイクルのDay 11のみに予定を再配置しました）。' 
       : 'これ以降の投与間隔を通常の2週間隔（Day 11, 25）に戻しました。');
@@ -660,44 +450,9 @@ export default function PatientList({
       totalCycles = 17;
     } else if (evaluation === null) {
       // 評価未定に戻す場合、8サイクル完了分を残し、9サイクル以降を provisional（見込み）として再構築
-      const completedPart = schedule.filter(s => s.cycleNumber <= 8);
       const reg = regimens.find(r => r.id === selectedPatient.activeRegimen.regimenId);
-      
       if (reg) {
-        const day8Start = completedPart.find(s => s.cycleNumber === 8 && s.dayNumber === 1);
-        if (day8Start) {
-          const startDateObj = new Date(day8Start.date);
-          const newFutureItems = [];
-          const baseAbsoluteDay = day8Start.absoluteDayNumber || 168;
-          
-          for (let cycle = 9; cycle <= 17; cycle++) {
-            for (let day = 1; day <= reg.cycleDays; day++) {
-              const offsetDays = (cycle - 8) * 21 + (day - 1);
-              const sDate = new Date(startDateObj.getTime() + offsetDays * 24 * 60 * 60 * 1000);
-              
-              const isDrugDay = reg.drugs.filter(drug => {
-                if (drug.applicableCycles && drug.applicableCycles.length > 0) {
-                  // 9サイクル以降は、drugsのapplicableCycles内の定義（通常は単独期としてのサイクル数または2〜8サイクル指定）に従う
-                  const targetCycle = cycle > 8 ? 8 : cycle;
-                  if (!drug.applicableCycles.includes(targetCycle)) return false;
-                }
-                return drug.applicableDays && drug.applicableDays.length > 0
-                  ? drug.applicableDays.includes(day)
-                  : reg.drugDays.includes(day);
-              }).length > 0;
-              
-              newFutureItems.push({
-                cycleNumber: cycle,
-                dayNumber: day,
-                absoluteDayNumber: baseAbsoluteDay + offsetDays,
-                date: getLocalDateString(sDate),
-                isDrugDay,
-                status: isDrugDay ? 'provisional' : 'none'
-              });
-            }
-          }
-          schedule = [...completedPart, ...newFutureItems];
-        }
+        schedule = rebuildProvisionalCycles(schedule, reg);
       }
       totalCycles = 17;
     }
