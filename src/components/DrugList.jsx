@@ -255,9 +255,10 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
                   style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', backgroundColor: '#fff' }}
                 >
                   <option value="点滴静注">点滴静注</option>
-                  <option value="皮下注射">皮下注射</option>
                   <option value="静脈注射">静脈注射</option>
-                  <option value="経口投与">経口投与</option>
+                  <option value="皮下注射">皮下注射</option>
+                  <option value="筋肉注射">筋肉注射</option>
+                  <option value="経口">経口</option>
                   <option value="その他">その他</option>
                 </select>
               </div>
