@@ -13,20 +13,23 @@ import { calculateEGFR } from './utils/renalUtils';
 import { safeSetLocalStorage, safeGetLocalStorage } from './utils/storageUtils';
 import { useConfirm } from './hooks/useConfirm';
 import { useToast } from './hooks/useToast';
-import { runMigrations } from './utils/migrations';
+import { useAppInitialization } from './hooks/useAppInitialization';
 
 
 
 
 export default function App() {
+  const {
+    regimens, setRegimens,
+    patients, setPatients,
+    drugsMaster, setDrugsMaster,
+    storageErrors, setStorageErrors,
+    isInitialized
+  } = useAppInitialization();
+
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [patients, setPatients] = useState([]);
-  const [regimens, setRegimens] = useState([]);
-  const [drugsMaster, setDrugsMaster] = useState([]);
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [alerts, setAlerts] = useState([]);
-  // localStorage破損検知用警告リスト
-  const [storageErrors, setStorageErrors] = useState([]);
   // 最終バックアップ日時
   const [lastBackupTime, setLastBackupTime] = useState(() => {
     return localStorage.getItem('onco_last_backup_time') || null;
@@ -44,216 +47,6 @@ export default function App() {
     window.addEventListener('app:toast', handleToastEvent);
     return () => window.removeEventListener('app:toast', handleToastEvent);
   }, [toast]);
-
-  // 初期ロード
-  useEffect(() => {
-    const storedPatients = safeGetLocalStorage('onco_patients');
-    const storedRegimens = safeGetLocalStorage('onco_regimens');
-    const errors = [];
-
-    // ---- マイグレーションバージョン管理 ----
-    const storedMigVer = parseInt(localStorage.getItem('onco_migration_version') || '0', 10);
-
-    let currentRegimens = [];
-    if (storedRegimens) {
-      try {
-        currentRegimens = storedRegimens;
-        if (!Array.isArray(currentRegimens)) throw new Error('not array');
-      } catch (e) {
-        console.error('onco_regimens のデータが破損しています:', e);
-        errors.push('レジメンデータ（onco_regimens）が破損しています。データをリセットしました。バックアップファイルから復元してください。');
-        currentRegimens = [];
-        safeSetLocalStorage('onco_regimens', '[]');
-      }
-    }
-
-    let currentPatients = [];
-    let patientsCleaned = false;
-    if (storedPatients) {
-      try {
-        currentPatients = storedPatients;
-        if (!Array.isArray(currentPatients)) throw new Error('not array');
-      } catch (e) {
-        console.error('onco_patients のデータが破損しています:', e);
-        errors.push('患者データ（onco_patients）が破損しています。データをリセットしました。バックアップファイルから復元してください。');
-        currentPatients = [];
-        safeSetLocalStorage('onco_patients', '[]');
-      }
-      
-      // 古いダミー患者のクリーンアップ（ここは移行処理とは別に維持）
-      const dummyPatientIds = [
-        'P001', 'P002', 'P003', 'P004', 'P005', 'P006', 'P007', 'P008', 'P009', 'P010',
-        'P011', 'P012', 'P013', 'P101', 'P102', 'P103', 'P104', 'P105', 'P106',
-        'P107', 'P108', 'P109', 'P110'
-      ];
-      const initialPatientCount = currentPatients.length;
-      currentPatients = currentPatients.filter(p => !dummyPatientIds.includes(p.id));
-      patientsCleaned = currentPatients.length !== initialPatientCount;
-    }
-
-    // --- 一元化されたマイグレーションの実行 ---
-    const migrationResult = runMigrations(currentRegimens, currentPatients, storedMigVer);
-    currentRegimens = migrationResult.regimens;
-    currentPatients = migrationResult.patients;
-    
-    // データが更新された場合は保存
-    if (migrationResult.updated || patientsCleaned) {
-      safeSetLocalStorage('onco_regimens', JSON.stringify(currentRegimens));
-      safeSetLocalStorage('onco_patients', JSON.stringify(currentPatients));
-      if (migrationResult.updated) {
-        safeSetLocalStorage('onco_migration_version', migrationResult.version.toString());
-        console.info(`[Migration] v${storedMigVer} → v${migrationResult.version} 完了`);
-      }
-    }
-
-    // 薬剤マスタのロードとマイグレーション
-    const storedDrugs = safeGetLocalStorage('onco_drugs');
-    let currentDrugs = [];
-    if (storedDrugs) {
-      try {
-        currentDrugs = storedDrugs;
-        if (!Array.isArray(currentDrugs)) throw new Error('not array');
-      } catch (e) {
-        console.error('onco_drugs のデータが破損しています:', e);
-        errors.push('薬剤マスタデータ（onco_drugs）が破損しています。データを初期化しました。');
-        currentDrugs = [];
-        safeSetLocalStorage('onco_drugs', JSON.stringify([]));
-      }
-    } else {
-      // 薬剤マスタが存在しない場合は、既存のレジメン・患者データからマイグレーションを実行
-      const drugMap = new Map();
-      let drugCounter = 1;
-
-      // レジメンテンプレートからユニークな薬剤を抽出
-      currentRegimens.forEach(r => {
-        if (r.drugs) {
-          r.drugs.forEach(d => {
-            if (!d.name) return;
-            const key = `${d.name}_${d.route || ''}`;
-            if (!drugMap.has(key)) {
-              drugMap.set(key, {
-                id: `D${String(drugCounter++).padStart(3, '0')}`,
-                name: d.name,
-                route: d.route || '点滴静注',
-                doseType: d.doseType || 'fixed',
-                defaultDoseValue: d.doseValue || 0,
-                defaultDuration: d.duration || 60,
-                notes: ''
-              });
-            }
-          });
-        }
-      });
-
-      // 患者個別レジメンからもユニークな薬剤を抽出
-      currentPatients.forEach(p => {
-        if (p.activeRegimen && p.activeRegimen.drugs) {
-          p.activeRegimen.drugs.forEach(d => {
-            if (!d.name) return;
-            const key = `${d.name}_${d.route || ''}`;
-            if (!drugMap.has(key)) {
-              drugMap.set(key, {
-                id: `D${String(drugCounter++).padStart(3, '0')}`,
-                name: d.name,
-                route: d.route || '点滴静注',
-                doseType: d.doseType || 'fixed',
-                defaultDoseValue: d.doseValue || 0,
-                defaultDuration: d.duration || 60,
-                notes: ''
-              });
-            }
-          });
-        }
-      });
-
-      currentDrugs = Array.from(drugMap.values());
-      safeSetLocalStorage('onco_drugs', JSON.stringify(currentDrugs));
-
-      // レジメンテンプレートの各薬剤に drugId を紐付ける
-      let regimensUpdated = false;
-      currentRegimens = currentRegimens.map(r => {
-        if (r.drugs) {
-          const updatedDrugs = r.drugs.map(d => {
-            const key = `${d.name}_${d.route || ''}`;
-            const found = drugMap.get(key);
-            return {
-              ...d,
-              drugId: found ? found.id : null
-            };
-          });
-          regimensUpdated = true;
-          return { ...r, drugs: updatedDrugs };
-        }
-        return r;
-      });
-      if (regimensUpdated) {
-        safeSetLocalStorage('onco_regimens', JSON.stringify(currentRegimens));
-      }
-
-      // 患者データの各薬剤に drugId を紐付ける
-      let patientsUpdated = false;
-      currentPatients = currentPatients.map(p => {
-        let activeRegimenUpdated = false;
-        let scheduleUpdated = false;
-        let updatedActiveRegimen = p.activeRegimen;
-        let updatedSchedule = p.schedule;
-
-        if (p.activeRegimen && p.activeRegimen.drugs) {
-          const updatedDrugs = p.activeRegimen.drugs.map(d => {
-            const key = `${d.name}_${d.route || ''}`;
-            const found = drugMap.get(key);
-            return {
-              ...d,
-              drugId: found ? found.id : null
-            };
-          });
-          updatedActiveRegimen = {
-            ...p.activeRegimen,
-            drugs: updatedDrugs
-          };
-          activeRegimenUpdated = true;
-        }
-
-        if (p.schedule) {
-          updatedSchedule = p.schedule.map(s => {
-            if (s.drugs) {
-              const updatedDrugs = s.drugs.map(d => {
-                const key = `${d.name}_${d.route || ''}`;
-                const found = drugMap.get(key);
-                return {
-                  ...d,
-                  drugId: found ? found.id : null
-                };
-              });
-              scheduleUpdated = true;
-              return { ...s, drugs: updatedDrugs };
-            }
-            return s;
-          });
-        }
-
-        if (activeRegimenUpdated || scheduleUpdated) {
-          patientsUpdated = true;
-          return {
-            ...p,
-            activeRegimen: updatedActiveRegimen,
-            schedule: updatedSchedule
-          };
-        }
-        return p;
-      });
-      if (patientsUpdated) {
-        safeSetLocalStorage('onco_patients', JSON.stringify(currentPatients));
-      }
-    }
-
-    // 状態更新
-    setRegimens(currentRegimens);
-    setPatients(currentPatients);
-    setDrugsMaster(currentDrugs);
-    localStorage.removeItem('onco_dummies_added_v2');
-    if (errors.length > 0) setStorageErrors(errors);
-  }, []);
 
   // アラートのリアルタイム計算
   useEffect(() => {
