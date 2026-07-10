@@ -85,15 +85,24 @@ export default function App() {
         'P011', 'P012', 'P013', 'P101', 'P102', 'P103', 'P104', 'P105', 'P106',
         'P107', 'P108', 'P109', 'P110'
       ];
+      const initialPatientCount = currentPatients.length;
       currentPatients = currentPatients.filter(p => !dummyPatientIds.includes(p.id));
+      var patientsCleaned = currentPatients.length !== initialPatientCount;
     }
 
     // --- 一元化されたマイグレーションの実行 ---
     const migrationResult = runMigrations(currentRegimens, currentPatients, storedMigVer);
     currentRegimens = migrationResult.regimens;
     currentPatients = migrationResult.patients;
-    if (migrationResult.updated) {
-      console.info(`[Migration] v${storedMigVer} → v${migrationResult.version} 完了`);
+    
+    // データが更新された場合は保存
+    if (migrationResult.updated || (typeof patientsCleaned !== 'undefined' && patientsCleaned)) {
+      safeSetLocalStorage('onco_regimens', JSON.stringify(currentRegimens));
+      safeSetLocalStorage('onco_patients', JSON.stringify(currentPatients));
+      if (migrationResult.updated) {
+        safeSetLocalStorage('onco_migration_version', migrationResult.version.toString());
+        console.info(`[Migration] v${storedMigVer} → v${migrationResult.version} 完了`);
+      }
     }
 
     // 薬剤マスタのロードとマイグレーション

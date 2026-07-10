@@ -1,5 +1,4 @@
 import { PROTOCOL_TYPES, guessProtocolType } from './regimenProtocols';
-import { safeSetLocalStorage } from './storageUtils';
 
 /**
  * 起動時に実行されるマイグレーション処理
@@ -125,12 +124,6 @@ export const runMigrations = (regimens, patients, currentVersion) => {
       return r;
     });
     migrationVersion = 4;
-  }
-
-  if (updatedAny) {
-    safeSetLocalStorage('onco_regimens', JSON.stringify(currentRegimens));
-    safeSetLocalStorage('onco_patients', JSON.stringify(currentPatients));
-    safeSetLocalStorage('onco_migration_version', migrationVersion.toString());
   }
 
   return { regimens: currentRegimens, patients: currentPatients, version: migrationVersion, updated: updatedAny };
