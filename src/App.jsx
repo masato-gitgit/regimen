@@ -13,6 +13,7 @@ import { calculateEGFR } from './utils/renalUtils';
 import { safeSetLocalStorage } from './utils/storageUtils';
 import { useConfirm } from './hooks/useConfirm';
 import { useToast } from './hooks/useToast';
+import { runMigrations } from './utils/migrations';
 
 
 
