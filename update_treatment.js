@@ -1,25 +1,50 @@
-import React, { useState, useMemo } from 'react';
-import { getApplicableDrugs } from '../../utils/drugMatching';
-import MonthCalendar from '../common/MonthCalendar';
-import { getLocalDateString } from '../../utils/dateUtils';
-import { formatDose } from '../../utils/doseUtils';
-import { useToast } from '../../hooks/useToast';
-import ScheduleEventModal from './ScheduleEventModal';
+const fs = require('fs');
+const path = require('path');
 
-export default function TreatmentCalendar({
-  patient,
-  regimens,
-  onUpdatePatient,
-  confirm
-}) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedEvent, setSelectedEvent] = useState(null);
+const filePath = path.join(__dirname, 'src/components/patient/TreatmentCalendar.jsx');
+let content = fs.readFileSync(filePath, 'utf-8');
 
-  const { toast } = useToast();
+// Replace getApplicableDrugs
+// In TreatmentCalendar.jsx: const targetDrugs = scheduleItem && scheduleItem.isDrugDay && patientDrugs.filter(d => d.applicableCycles && scheduleItem.cycleNumber && !d.applicableCycles.includes(scheduleItem.cycleNumber) ? false : d.applicableDays ? d.applicableDays.includes(scheduleItem.dayNumber) : true) || [];
+// The user says for PatientList 1665行 (now TreatmentCalendar 100行), replace it with:
+/*
+        const targetDrugs = getApplicableDrugs(
+          patient.activeRegimen?.drugs, item.cycleNumber, item.dayNumber,
+          [] 
+        );
+*/
 
+const getCalendarCellsStart = content.indexOf('  const calendarCells = useMemo(() => {');
+if (getCalendarCellsStart !== -1) {
+  const getCalendarCellsEndStr = '  }, [currentMonth]);';
+  const getCalendarCellsEndStrCRLF = '  }, [currentMonth]);';
+  let endIdx = content.indexOf(getCalendarCellsEndStr, getCalendarCellsStart);
+  if (endIdx !== -1) {
+    content = content.substring(0, getCalendarCellsStart) + content.substring(endIdx + getCalendarCellsEndStr.length + 1);
+  }
+}
 
-  return (
-    <>
+// Remove ChevronLeft, ChevronRight, add getApplicableDrugs and MonthCalendar
+content = content.replace(
+  `import { ChevronLeft, ChevronRight } from 'lucide-react';`,
+  `import { getApplicableDrugs } from '../../utils/drugMatching';\nimport MonthCalendar from '../common/MonthCalendar';`
+);
+content = content.replace(
+  `import { getLocalDateString, addDays } from '../../utils/dateUtils';`,
+  `import { getLocalDateString } from '../../utils/dateUtils';`
+);
+content = content.replace(
+  `import { getJapaneseHoliday } from '../../utils/holidayUtils';\n`,
+  ``
+);
+
+// Replace UI block
+const headerIdx = content.indexOf(`    <>`);
+const bodyEndStr = '      {selectedEvent && (';
+let endIdx = content.indexOf(bodyEndStr, headerIdx);
+
+if (headerIdx !== -1 && endIdx !== -1) {
+  const replacement = `    <>
       <MonthCalendar
         currentMonth={currentMonth}
         onMonthChange={setCurrentMonth}
@@ -97,16 +122,13 @@ export default function TreatmentCalendar({
           );
         }}
       />
-      {selectedEvent && (
-        <ScheduleEventModal
-          event={selectedEvent}
-          patient={patient}
-          regimens={regimens}
-          onUpdatePatient={onUpdatePatient}
-          onClose={() => setSelectedEvent(null)}
-          confirm={confirm}
-        />
-      )}
-    </>
-  );
+`;
+  content = content.substring(0, headerIdx) + replacement + content.substring(endIdx);
 }
+
+// Remove handlePrevMonth, handleNextMonth
+const handlePrevNextRegex = /  const handlePrevMonth[\s\S]*?handleNextMonth[\s\S]*?  \};\r?\n\r?\n/g;
+content = content.replace(handlePrevNextRegex, '');
+
+fs.writeFileSync(filePath, content, 'utf-8');
+console.log('TreatmentCalendar.jsx updated successfully.');

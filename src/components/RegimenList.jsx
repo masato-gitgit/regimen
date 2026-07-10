@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Shield, Calendar, Clock, List, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { getLocalDateString } from '../utils/dateUtils';
+import { getApplicableDrugs } from '../utils/drugMatching';
+import MonthCalendar from './common/MonthCalendar';
 import { useToast } from '../hooks/useToast';
 
 import { PROTOCOL_TYPES, guessProtocolType } from '../utils/regimenProtocols';
@@ -102,61 +104,6 @@ export default function RegimenList({
   }, [calendarDate]);
 
 
-  const getCalendarCells = () => {
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-
-    const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
-    const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
-
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-
-    const cells = [];
-
-    // 前月の端数
-    const prevMonthYear = month === 0 ? year - 1 : year;
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const daysInPrevMonth = getDaysInMonth(prevMonthYear, prevMonth);
-    for (let i = firstDay - 1; i >= 0; i--) {
-      const d = daysInPrevMonth - i;
-      cells.push({
-        date: new Date(prevMonthYear, prevMonth, d),
-        isCurrentMonth: false
-      });
-    }
-
-    // 当月
-    for (let d = 1; d <= daysInMonth; d++) {
-      cells.push({
-        date: new Date(year, month, d),
-        isCurrentMonth: true
-      });
-    }
-
-    // 翌月の端数
-    const totalCells = 42;
-    const nextMonthYear = month === 11 ? year + 1 : year;
-    const nextMonth = month === 11 ? 0 : month + 1;
-    const remaining = totalCells - cells.length;
-    for (let d = 1; d <= remaining; d++) {
-      cells.push({
-        date: new Date(nextMonthYear, nextMonth, d),
-        isCurrentMonth: false
-      });
-    }
-    return cells;
-  };
-
-  const calendarCells = useMemo(() => getCalendarCells(), [calendarDate]);
-
-  const handlePrevMonth = () => {
-    setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1));
-  };
 
   const getDayInfo = (cellDate, regimen) => {
     // 起点は常にcalendarStartMonday（初期表示月の第1月曜に固定）
@@ -180,20 +127,7 @@ export default function RegimenList({
     if (cycleNumber > totalCycles) return null;
 
     // 各薬剤について、このサイクル・この日に投与されるかを個別に判定
-    const targetDrugs = regimen.drugs.filter(drug => {
-      // 適用サイクルが指定されている場合、現在のサイクルが対象外なら除外
-      if (drug.applicableCycles && drug.applicableCycles.length > 0) {
-        if (!drug.applicableCycles.includes(cycleNumber)) {
-          return false;
-        }
-      }
-      // 薬剤個別の対象Dayが指定されている場合、その日が対象でなければ除外
-      if (drug.applicableDays && drug.applicableDays.length > 0) {
-        return drug.applicableDays.includes(dayNumber);
-      }
-      // applicableDays未指定の場合、レジメン全体のdrugDaysで判定
-      return regimen.drugDays.includes(dayNumber);
-    });
+    const targetDrugs = getApplicableDrugs(regimen.drugs, cycleNumber, dayNumber, regimen.drugDays);
 
     return {
       cycleNumber,
@@ -915,90 +849,46 @@ export default function RegimenList({
           {selectedRegimenId && filteredRegimens.length > 0 && (() => {
             const regimen = filteredRegimens[0];
             return (
-              <div className="card" style={{ marginTop: '24px' }}>
-                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                    <Calendar size={18} />
-                    レジメン投与日程カレンダーシミュレーション (第1週月曜開始)
-                  </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <button type="button" className="btn btn-outline" style={{ padding: '4px 8px' }} onClick={handlePrevMonth}>
-                      <ChevronLeft size={16} />
-                    </button>
-                    <span style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--color-primary)' }}>
-                      {calendarDate.getFullYear()}年 {calendarDate.getMonth() + 1}月
-                    </span>
-                    <button type="button" className="btn btn-outline" style={{ padding: '4px 8px' }} onClick={handleNextMonth}>
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
+              <div className="card regimen-simulation-card" style={{ marginTop: '30px', borderTop: '2px solid var(--color-primary)', backgroundColor: '#f8fafc' }}>
                 <div className="card-body" style={{ padding: '15px' }}>
                   <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '15px' }}>
                     このレジメンを{getLocalDateString(calendarStartMonday)}（第1週月曜日）から開始したと仮定した日程シミュレーションです。
                   </p>
-                  
-                  <div className="calendar-grid" style={{ marginBottom: '10px' }}>
-                    {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div key={day} className="calendar-header-cell" style={{ padding: '6px 0', fontSize: '0.8rem' }}>{day}</div>
-                    ))}
-
-                    {calendarCells.map((cell, idx) => {
-                      const dayInfo = getDayInfo(cell.date, regimen);
+                  <MonthCalendar
+                    currentMonth={calendarDate}
+                    onMonthChange={setCalendarDate}
+                    showHolidays={false}
+                    showTodayButton={false}
+                    cellMinHeight="90px"
+                    title={<h4 style={{ fontSize: '0.95rem', fontWeight: '600', margin: 0, color: 'var(--color-primary)' }}>日程シミュレーション</h4>}
+                    renderCellContent={({ date }) => {
+                      const dayInfo = getDayInfo(date, regimen);
+                      if (!dayInfo?.isDrugDay) return null;
                       return (
                         <div 
-                          key={idx} 
-                          className={`calendar-cell ${cell.isCurrentMonth ? '' : 'other-month'}`}
+                          className="calendar-event"
                           style={{
-                            minHeight: '90px',
-                            padding: '6px',
-                            backgroundColor: cell.isCurrentMonth ? '#ffffff' : '#f8fafc',
-                            borderBottom: '1px solid var(--color-border)',
-                            borderRight: '1px solid var(--color-border)'
+                            backgroundColor: 'var(--color-primary-light)',
+                            color: 'var(--color-primary)',
+                            border: '1px solid currentColor',
+                            padding: '2px 4px',
+                            borderRadius: '4px',
+                            fontSize: '0.65rem'
                           }}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span 
-                              className="calendar-date-number num-tabular" 
-                              style={{ 
-                                color: cell.isCurrentMonth ? 'var(--color-text-dark)' : 'var(--color-text-muted)',
-                                fontWeight: '500',
-                                fontSize: '0.75rem'
-                              }}
-                            >
-                              {cell.date.getDate()}
-                            </span>
-                          </div>
-
-                          <div className="calendar-events" style={{ marginTop: '4px' }}>
-                            {dayInfo && dayInfo.isDrugDay && (
-                              <div 
-                                className="calendar-event"
-                                style={{
-                                  backgroundColor: 'var(--color-primary-light)',
-                                  color: 'var(--color-primary)',
-                                  border: '1px solid currentColor',
-                                  padding: '2px 4px',
-                                  borderRadius: '4px',
-                                  fontSize: '0.65rem'
-                                }}
-                              >
-                                <div style={{ fontWeight: '700' }}>C{dayInfo.cycleNumber} - Day {dayInfo.dayNumber}</div>
-                                {dayInfo.drugs.map((drug, dIdx) => {
-                                  const unit = drug.doseType === 'bsa' ? 'mg/m²' : drug.doseType === 'weight' ? 'mg/kg' : 'mg';
-                                  return (
-                                    <div key={dIdx} style={{ fontSize: '0.55rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
-                                      {drug.name.slice(0, 7)}: {drug.doseValue}{unit}
-                                    </div>
-                                  );
-                                })}
+                          <div style={{ fontWeight: '700' }}>C{dayInfo.cycleNumber} - Day {dayInfo.dayNumber}</div>
+                          {dayInfo.drugs.map((drug, i) => {
+                            const unit = drug.doseType === 'bsa' ? 'mg/m²' : drug.doseType === 'weight' ? 'mg/kg' : 'mg';
+                            return (
+                              <div key={i} style={{ fontSize: '0.55rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                                {drug.name.slice(0, 7)}: {drug.doseValue}{unit}
                               </div>
-                            )}
-                          </div>
+                            );
+                          })}
                         </div>
                       );
-                    })}
-                  </div>
+                    }}
+                  />
                 </div>
               </div>
             );

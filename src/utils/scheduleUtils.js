@@ -1,4 +1,5 @@
 import { getLocalDateString, parseLocalDate, addDays } from './dateUtils';
+import { getApplicableDrugs } from './drugMatching';
 import { PROTOCOL_TYPES } from './regimenProtocols';
 
 /**
@@ -51,16 +52,13 @@ export const generateSchedule = (regimen, startDate, startCycle = 1, startDay = 
       
       let isDrugDay = false;
       // 各薬剤のapplicableDays/applicableCyclesを動的に判定
-      const matchingDrugs = regimen.drugs?.filter(drug => {
-        if (drug.applicableCycles && drug.applicableCycles.length > 0) {
-          const lookupCycle = (isLunsumioMonotherapy && cycle > 8) ? 8 : cycle;
-          if (!drug.applicableCycles.includes(lookupCycle)) return false;
-        }
-        if (drug.applicableDays && drug.applicableDays.length > 0) {
-          return drug.applicableDays.includes(day);
-        }
-        return regimen.drugDays?.includes(day);
-      }) || [];
+      const matchingDrugs = getApplicableDrugs(
+        regimen.drugs, 
+        cycle, 
+        day, 
+        regimen.drugDays, 
+        { cycleCap: isLunsumioMonotherapy ? 8 : undefined }
+      );
       isDrugDay = matchingDrugs.length > 0;
 
       let status = 'none';

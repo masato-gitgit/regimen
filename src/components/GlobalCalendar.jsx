@@ -2,61 +2,14 @@ import React, { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, User, BookOpen } from 'lucide-react';
 import { calcAndFormatDoseStr } from '../utils/doseUtils';
 import { getLocalDateString } from '../utils/dateUtils';
+import { getApplicableDrugs } from '../utils/drugMatching';
+import MonthCalendar from './common/MonthCalendar';
 import { PROTOCOL_TYPES } from '../utils/regimenProtocols';
 import { getJapaneseHoliday } from '../utils/holidayUtils';
 
 
 export default function GlobalCalendar({ patients, regimens, onSelectPatient, onNavigate }) {
   const [currentDate, setCurrentDate] = useState(new Date());
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  // 月切り替え
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-
-  // カレンダーの日付セル生成
-  const generateCalendarCells = () => {
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
-    const prevLastDate = new Date(year, month, 0).getDate();
-
-    const cells = [];
-
-    // 前月の端数
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      cells.push({
-        date: new Date(year, month - 1, prevLastDate - i),
-        isCurrentMonth: false
-      });
-    }
-
-    // 当月の日付
-    for (let d = 1; d <= lastDate; d++) {
-      cells.push({
-        date: new Date(year, month, d),
-        isCurrentMonth: true
-      });
-    }
-
-    // 翌月の端数
-    const totalCells = 42; // 6行分
-    const remaining = totalCells - cells.length;
-    for (let d = 1; d <= remaining; d++) {
-      cells.push({
-        date: new Date(year, month + 1, d),
-        isCurrentMonth: false
-      });
-    }
-
-    return cells;
-  };
 
   // 特定の日付の投与イベントを取得
   const getEventsForDate = (dateStr) => {
@@ -75,18 +28,13 @@ export default function GlobalCalendar({ patients, regimens, onSelectPatient, on
         const day = daySchedule.dayNumber;
         const patientDrugs = patient.activeRegimen.drugs || [];
 
-        const matchingDrugs = patientDrugs.filter(drug => {
-          if (drug.applicableCycles && drug.applicableCycles.length > 0) {
-            if (!drug.applicableCycles.includes(cycle)) return false;
-          }
-          if (drug.applicableDays && drug.applicableDays.length > 0) {
-            return drug.applicableDays.includes(day);
-          }
-          if (reg.drugDays && reg.drugDays.length > 0) {
-            return reg.drugDays.includes(day);
-          }
-          return true;
-        });
+        const matchingDrugs = getApplicableDrugs(
+          patientDrugs,
+          cycle,
+          day,
+          reg.drugDays,
+          { cycleCap: (patient.activeRegimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_SC || patient.activeRegimen.protocolType === PROTOCOL_TYPES.LUNSUMIO_IV) ? 8 : undefined }
+        );
 
         if (matchingDrugs.length === 0) return;
 
@@ -139,167 +87,77 @@ export default function GlobalCalendar({ patients, regimens, onSelectPatient, on
     onNavigate('patients');
   };
 
-  const daysOfWeek = ['日', '月', '火', '水', '木', '金', '土'];
-  const cells = generateCalendarCells();
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
-      {/* カレンダーコントロール */}
-      <div className="card" style={{ padding: '15px 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0, color: 'var(--color-primary)' }}>
-              {year}年 {month + 1}月 全体化学療法スケジュール
-            </h3>
-            <span className="badge badge-info" style={{ fontSize: '0.8rem' }}>
-              治療中患者数: {patients.filter(p => p.activeRegimen).length} 名
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-outline" onClick={handlePrevMonth} style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <ChevronLeft size={16} />
-              先月
-            </button>
-            <button className="btn btn-outline" onClick={() => setCurrentDate(new Date())} style={{ padding: '8px 12px' }}>
-              今月
-            </button>
-            <button className="btn btn-outline" onClick={handleNextMonth} style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              来月
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* カレンダー本体グリッド */}
-      <div className="card" style={{ flexGrow: 1, padding: '20px', overflowY: 'auto' }}>
-        {/* 曜日ヘッダー */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', borderBottom: '2px solid var(--color-border)', paddingBottom: '10px', textAlign: 'center', fontWeight: '700', color: 'var(--color-text-dark)' }}>
-          {daysOfWeek.map((day, idx) => (
-            <div key={day} style={{ color: idx === 0 ? '#ef4444' : idx === 6 ? '#3b82f6' : 'inherit' }}>
-              {day}曜日
+      <div className="card" style={{ flexGrow: 1, padding: '20px', display: 'flex', flexDirection: 'column' }}>
+        <MonthCalendar
+          currentMonth={currentDate}
+          onMonthChange={setCurrentDate}
+          showHolidays={true}
+          showTodayButton={true}
+          cellMinHeight="120px"
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0, color: 'var(--color-primary)' }}>
+                {currentDate.getFullYear()}年 {currentDate.getMonth() + 1}月 全体化学療法スケジュール
+              </h3>
+              <span className="badge badge-info" style={{ fontSize: '0.8rem' }}>
+                治療中患者数: {patients.filter(p => p.activeRegimen).length} 名
+              </span>
             </div>
-          ))}
-        </div>
-
-        {/* 日付セル */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(120px, auto)', gap: '8px', marginTop: '10px' }}>
-          {cells.map((cell, idx) => {
-            const dateStr = getLocalDateString(cell.date);
+          }
+          renderCellContent={({ dateStr }) => {
             const events = getEventsForDate(dateStr);
-            const isToday = getLocalDateString(new Date()) === dateStr;
-            const holidayName = getJapaneseHoliday(cell.date);
-            const isHoliday = !!holidayName;
-            const dayOfWeek = cell.date.getDay();
-            const isSunday = dayOfWeek === 0;
-            const isSaturday = dayOfWeek === 6;
-
+            if (events.length === 0) return null;
             return (
-              <div
-                key={idx}
-                style={{
-                  border: isToday ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
-                  borderRadius: '6px',
-                  padding: '8px',
-                  backgroundColor: (isHoliday || isSunday)
-                    ? '#fff5f5' // 日曜・祝日は薄い赤
-                    : isSaturday
-                      ? '#eff6ff' // 土曜は薄い青
-                      : cell.isCurrentMonth 
-                        ? '#fff' 
-                        : 'var(--color-bg)',
-                  opacity: cell.isCurrentMonth ? 1 : 0.6,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  minHeight: '120px',
-                  boxShadow: isToday ? '0 4px 12px rgba(99, 102, 241, 0.15)' : 'none',
-                  transition: 'border-color 0.2s'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexGrow: 1 }}>
+                {events.map((ev, eIdx) => {
+                  const isProvisional = ev.status === 'provisional';
+                  const baseBadgeStyle = getRegimenBadgeStyle(ev.regimenId);
+                  const badgeStyle = isProvisional ? {
+                    backgroundColor: '#f1f5f9',
+                    color: '#64748b',
+                    border: '1px dashed #94a3b8'
+                  } : baseBadgeStyle;
+
+                  return (
+                    <div
+                      key={eIdx}
+                      onClick={() => handleEventClick(ev.patientId)}
                       style={{
-                        fontSize: '0.9rem',
-                        fontWeight: '700',
-                        color: isToday 
-                          ? '#fff' 
-                          : (isHoliday || isSunday ? '#ef4444' : isSaturday ? '#3b82f6' : 'var(--color-text-dark)'),
-                        backgroundColor: isToday ? 'var(--color-primary)' : 'transparent',
-                        borderRadius: isToday ? '50%' : 'none',
-                        width: isToday ? '24px' : 'auto',
-                        height: isToday ? '24px' : 'auto',
-                        display: isToday ? 'flex' : 'inline',
-                        alignItems: isToday ? 'center' : 'initial',
-                        justifyContent: isToday ? 'center' : 'initial',
+                        ...badgeStyle,
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '2px',
+                        transition: 'transform 0.1s, box-shadow 0.1s',
                       }}
+                      className="calendar-event-badge"
+                      title={`${ev.patientName}: ${ev.regimenName} - ${ev.drugName} ${ev.dose} (C${ev.cycle}D${ev.day})`}
                     >
-                      {cell.date.getDate()}
-                    </span>
-                    {isHoliday && (
-                      <span style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: '600' }} title={holidayName}>
-                        {holidayName}
-                      </span>
-                    )}
-                  </div>
-                  {events.length > 0 && (
-                    <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', fontWeight: '600' }}>
-                      {events.length}件の投与
-                    </span>
-                  )}
-                </div>
-
-                {/* 投与予定リスト (高さを自動で伸ばして全員表示する) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexGrow: 1 }}>
-                  {events.map((ev, eIdx) => {
-                    const isProvisional = ev.status === 'provisional';
-                    const baseBadgeStyle = getRegimenBadgeStyle(ev.regimenId);
-                    const badgeStyle = isProvisional ? {
-                      backgroundColor: '#f1f5f9',
-                      color: '#64748b',
-                      border: '1px dashed #94a3b8'
-                    } : baseBadgeStyle;
-
-                    return (
-                      <div
-                        key={eIdx}
-                        onClick={() => handleEventClick(ev.patientId)}
-                        style={{
-                          ...badgeStyle,
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '2px',
-                          transition: 'transform 0.1s, box-shadow 0.1s',
-                        }}
-                        className="calendar-event-badge"
-                        title={`${ev.patientName}: ${ev.regimenName} - ${ev.drugName} ${ev.dose} (C${ev.cycle}D${ev.day})`}
-                      >
-                        <div style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <User size={10} />
-                          {ev.patientName}{isProvisional && ' (見込み)'}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', opacity: 0.9 }}>
-                          <span>{ev.drugName}</span>
-                          <span style={{ fontWeight: '600' }}>{ev.dose}</span>
-                        </div>
-                        {ev.status === 'completed' && (
-                          <div style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: '700', textAlign: 'right' }}>
-                            実施済
-                          </div>
-                        )}
+                      <div style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <User size={10} />
+                        {ev.patientName}{isProvisional && ' (見込み)'}
                       </div>
-                    );
-                  })}
-                </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', opacity: 0.9 }}>
+                        <span>{ev.drugName}</span>
+                        <span style={{ fontWeight: '600' }}>{ev.dose}</span>
+                      </div>
+                      {ev.status === 'completed' && (
+                        <div style={{ fontSize: '0.65rem', color: '#16a34a', fontWeight: '700', textAlign: 'right' }}>
+                          実施済
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
-          })}
-        </div>
+          }}
+        />
       </div>
     </div>
   );
