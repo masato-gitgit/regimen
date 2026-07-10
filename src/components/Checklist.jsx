@@ -147,7 +147,6 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
 
     let updatedPatient = {
       ...selectedPatient,
-      todayStatus: status,
       schedule: updatedSchedule
     };
 
