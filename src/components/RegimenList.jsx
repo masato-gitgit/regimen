@@ -207,6 +207,7 @@ export default function RegimenList({
     setNewRegimen({
       name: regimen.name,
       cancerType: regimen.cancerType,
+      protocolType: regimen.protocolType || '',
       cycleDays: regimen.cycleDays,
       totalCycles: regimen.totalCycles,
       drugDaysRaw: regimen.drugDays.join(', '),
@@ -228,6 +229,7 @@ export default function RegimenList({
     setNewRegimen({
       name: `${regimen.name}_copy`,
       cancerType: regimen.cancerType,
+      protocolType: regimen.protocolType || '',
       cycleDays: regimen.cycleDays,
       totalCycles: regimen.totalCycles,
       drugDaysRaw: regimen.drugDays.join(', '),
@@ -251,6 +253,7 @@ export default function RegimenList({
     setNewRegimen({
       name: '',
       cancerType: '',
+      protocolType: '',
       cycleDays: 21,
       totalCycles: 4,
       drugDaysRaw: '1',
@@ -288,7 +291,7 @@ export default function RegimenList({
       id: editingRegimenId || `R-${crypto.randomUUID().split('-')[0]}`,
       name: newRegimen.name,
       cancerType: newRegimen.cancerType,
-      protocolType: newRegimen.protocolType || guessProtocolType(newRegimen.name) || null,
+      protocolType: newRegimen.protocolType || null,
       cycleDays: parseInt(newRegimen.cycleDays),
       totalCycles: parseInt(newRegimen.totalCycles),
       drugDays,
@@ -366,7 +369,17 @@ export default function RegimenList({
                     className="form-control" 
                     required 
                     value={newRegimen.name}
-                    onChange={e => setNewRegimen({...newRegimen, name: e.target.value})}
+                    onChange={e => {
+                      const newName = e.target.value;
+                      setNewRegimen(prev => {
+                        const guessed = guessProtocolType(newName);
+                        return {
+                          ...prev, 
+                          name: newName,
+                          protocolType: prev.protocolType ? prev.protocolType : (guessed || '')
+                        };
+                      });
+                    }}
                     placeholder="例: mFOLFOX6, GEM+CDDP"
                   />
                 </div>
@@ -380,6 +393,21 @@ export default function RegimenList({
                     onChange={e => setNewRegimen({...newRegimen, cancerType: e.target.value})}
                     placeholder="例: 大腸がん, 乳がん, 胆道がん"
                   />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">プロトコルタイプ</label>
+                  <select 
+                    className="form-control"
+                    value={newRegimen.protocolType}
+                    onChange={e => setNewRegimen({...newRegimen, protocolType: e.target.value})}
+                  >
+                    <option value="">標準（特殊プロトコルなし）</option>
+                    <option value="tecvayli">テクベイリ (ステップアップ・丸め)</option>
+                    <option value="talquetamab">タービー (ステップアップ・丸め)</option>
+                    <option value="lunsumio_sc">ルンスミオ 皮下注 (漸増・上限)</option>
+                    <option value="lunsumio_iv">ルンスミオ 静注 (漸増・上限)</option>
+                    <option value="combination">併用療法 (特殊)</option>
+                  </select>
                 </div>
               </div>
 
