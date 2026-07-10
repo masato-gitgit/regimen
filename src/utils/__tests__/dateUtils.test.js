@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getLocalDateString, parseLocalDate, addDays, getNextWeekday } from '../dateUtils';
+import { getLocalDateString, parseLocalDate, addDays } from '../dateUtils';
 
 describe('dateUtils', () => {
   it('getLocalDateString should return YYYY-MM-DD in local time', () => {
