@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, User, Check, AlertCircle, Clock, Save } from 'lucide-react';
-import { formatDose } from '../utils/doseUtils';
+import { calcAndFormatDose } from '../utils/doseUtils';
 import { getLocalDateString } from '../utils/dateUtils';
 import { getTodayStatus } from '../utils/scheduleUtils';
 import { PROTOCOL_TYPES } from '../utils/regimenProtocols';
@@ -433,14 +433,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
                     })
                     .map(({ drug, origIdx }, i) => {
                     const isOmitted = (todayScheduleItem?.omittedDrugIndices || []).includes(origIdx);
-                    let dose = 0;
-                    if (drug.doseType === 'bsa') {
-                      dose = drug.doseValue * selectedPatient.bsa;
-                    } else if (drug.doseType === 'weight') {
-                      dose = drug.doseValue * selectedPatient.weight;
-                    } else {
-                      dose = drug.doseValue;
-                    }
+                    const dose = calcAndFormatDose(drug, selectedPatient);
 
                     return (
                       <div key={i} style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '12px', opacity: isOmitted ? 0.5 : 1 }}>
@@ -449,7 +442,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
                           {isOmitted && <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#b45309', backgroundColor: '#fde68a', padding: '2px 6px', borderRadius: '4px' }}>中止予定</span>}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                          <span>投与量: <strong className="num-tabular" style={{ color: 'var(--color-secondary)' }}>{formatDose(dose, drug.name)} mg</strong></span>
+                          <span>投与量: <strong className="num-tabular" style={{ color: 'var(--color-secondary)' }}>{dose} mg</strong></span>
                           <span>ルート: {drug.route}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginTop: '2px' }}>
@@ -515,10 +508,7 @@ export default function Checklist({ patients, regimens, selectedPatientId, onUpd
                           return true;
                         })
                         .map((drug, i) => {
-                          let calcDose = 0;
-                          if (drug.doseType === 'bsa') calcDose = formatDose(drug.doseValue * selectedPatient.bsa, drug.name);
-                          else if (drug.doseType === 'weight') calcDose = formatDose(drug.doseValue * selectedPatient.weight, drug.name);
-                          else calcDose = formatDose(drug.doseValue, drug.name);
+                          const calcDose = calcAndFormatDose(drug, selectedPatient);
                           return (
                             <div key={drug.drugId || drug.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                               <label style={{ fontSize: '0.8rem', minWidth: '150px', flex: '1', color: 'var(--color-text-dark)' }}>{drug.name}</label>

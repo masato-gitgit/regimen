@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Shield, Users, Clock, ChevronDown, ChevronUp } from 'lucide-react';
-import { formatDose, isMicroDoseDrug } from '../utils/doseUtils';
+import { formatDose, calcAndFormatDose, isMicroDoseDrug } from '../utils/doseUtils';
 import { getLocalDateString } from '../utils/dateUtils';
 
 export default function DrugAggregation({ patients, regimens }) {
@@ -88,18 +88,8 @@ export default function DrugAggregation({ patients, regimens }) {
       }
 
       targetDrugs.forEach(drug => {
-        // 用量計算
-        let doseValue = 0;
-        if (drug.doseType === 'bsa') {
-          doseValue = drug.doseValue * (patient.bsa || 1);
-        } else if (drug.doseType === 'weight') {
-          doseValue = drug.doseValue * (patient.weight || 1);
-        } else {
-          doseValue = drug.doseValue;
-        }
-
-        // 共通ユーティリティで丸め（タービー・テクベイリ等の10mg未満は小数第1位まで）
-        const finalDose = formatDose(doseValue, drug.name);
+        // 共通ユーティリティで計算・丸め（タービー・テクベイリ等の10mg未満は小数第1位まで）
+        const finalDose = calcAndFormatDose(drug, patient);
 
         if (!drugSummary[drug.name]) {
           drugSummary[drug.name] = {
