@@ -24,7 +24,7 @@ export const guessProtocolType = (name) => {
   if (name.includes('タービー') || name.includes('トアルクエタマブ')) {
     return PROTOCOL_TYPES.TALQUETAMAB;
   }
-  if (name.includes('ルンズメオ') || name.includes('モスネツズマブ')) {
+  if (name.includes('ルンスミオ') || name.includes('モスネツズマブ')) {
     // 投与経路(SC/IV)までは名前だけでは完全には判定できないが、便宜的に文字列判定
     if (name.includes('皮下注') || name.includes('SC')) {
       return PROTOCOL_TYPES.LUNSUMIO_SC;
