@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, Search, AlertCircle, FileText, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, AlertCircle, FileText, Check, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 
-export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, onUpdateDrug, onDeleteDrug, confirm }) {
+export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, onUpdateDrug, onDeleteDrug, onUpdateDrugs, confirm }) {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -161,6 +161,44 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
       onDeleteDrug(drugId);
       toast('薬剤を削除しました。');
     }
+  };
+
+  // 手動並び替え (上に移動)
+  const handleMoveUp = (drugId) => {
+    if (searchTerm !== '') return; // 検索中は無効
+    const index = drugsMaster.findIndex(d => d.id === drugId);
+    if (index <= 0) return;
+    const newDrugs = [...drugsMaster];
+    const temp = newDrugs[index];
+    newDrugs[index] = newDrugs[index - 1];
+    newDrugs[index - 1] = temp;
+    if (onUpdateDrugs) onUpdateDrugs(newDrugs);
+  };
+
+  // 手動並び替え (下に移動)
+  const handleMoveDown = (drugId) => {
+    if (searchTerm !== '') return; // 検索中は無効
+    const index = drugsMaster.findIndex(d => d.id === drugId);
+    if (index === -1 || index === drugsMaster.length - 1) return;
+    const newDrugs = [...drugsMaster];
+    const temp = newDrugs[index];
+    newDrugs[index] = newDrugs[index + 1];
+    newDrugs[index + 1] = temp;
+    if (onUpdateDrugs) onUpdateDrugs(newDrugs);
+  };
+
+  // 50音ソート
+  const handleSortAlphabetical = async () => {
+    const ok = await confirm(
+      'すべての薬剤を50音順に並び替えてよろしいですか？（この操作は元に戻せません）',
+      '50音順にソート',
+      { confirmLabel: '並び替える' }
+    );
+    if (!ok) return;
+
+    const newDrugs = [...drugsMaster].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    if (onUpdateDrugs) onUpdateDrugs(newDrugs);
+    toast('薬剤を50音順に並び替えました。');
   };
 
   return (
@@ -366,15 +404,25 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
       {/* 検索・一覧セクション */}
       <div className="card">
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-          <div style={{ position: 'relative', width: '300px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-            <input 
-              type="text" 
-              placeholder="薬剤名やルートで検索..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px 8px 36px', border: '1px solid var(--color-border)', borderRadius: '20px', fontSize: '0.85rem' }}
-            />
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '300px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
+              <input 
+                type="text" 
+                placeholder="薬剤名やルートで検索..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px 8px 36px', border: '1px solid var(--color-border)', borderRadius: '20px', fontSize: '0.85rem' }}
+              />
+            </div>
+            <button 
+              className="btn btn-secondary" 
+              onClick={handleSortAlphabetical}
+              style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+              disabled={drugsMaster.length === 0}
+            >
+              50音順に並び替え
+            </button>
           </div>
           <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
             登録数: {drugsMaster.length}件
@@ -468,6 +516,32 @@ export default function DrugList({ drugsMaster, regimens, patients, onAddDrug, o
                       </td>
                       <td style={{ padding: '12px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                          <button 
+                            onClick={() => handleMoveUp(drug.id)}
+                            style={{ 
+                              background: 'none', border: 'none', 
+                              color: searchTerm || index === 0 ? 'var(--color-border)' : 'var(--color-primary)', 
+                              cursor: searchTerm || index === 0 ? 'not-allowed' : 'pointer', 
+                              padding: '4px', display: 'flex', alignItems: 'center'
+                            }}
+                            disabled={searchTerm !== '' || index === 0}
+                            title={searchTerm !== '' ? '検索中は並び替えできません' : '上に移動'}
+                          >
+                            <ArrowUp size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleMoveDown(drug.id)}
+                            style={{ 
+                              background: 'none', border: 'none', 
+                              color: searchTerm || index === filteredDrugs.length - 1 ? 'var(--color-border)' : 'var(--color-primary)', 
+                              cursor: searchTerm || index === filteredDrugs.length - 1 ? 'not-allowed' : 'pointer', 
+                              padding: '4px', display: 'flex', alignItems: 'center'
+                            }}
+                            disabled={searchTerm !== '' || index === filteredDrugs.length - 1}
+                            title={searchTerm !== '' ? '検索中は並び替えできません' : '下に移動'}
+                          >
+                            <ArrowDown size={16} />
+                          </button>
                           <button 
                             onClick={() => handleStartEdit(drug)}
                             style={{ 

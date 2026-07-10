@@ -725,6 +725,10 @@ export default function App() {
               onAddDrug={handleAddDrug}
               onUpdateDrug={handleUpdateDrug}
               onDeleteDrug={handleDeleteDrug}
+              onUpdateDrugs={(data) => {
+                setDrugsMaster(data);
+                safeSetLocalStorage('onco_drugs', JSON.stringify(data));
+              }}
               confirm={confirm}
             />
           )}
