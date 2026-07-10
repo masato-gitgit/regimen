@@ -34,20 +34,7 @@ export const runMigrations = (regimens, patients, currentVersion) => {
         const isCorrect = r.drugs?.length === 4 && r.drugs[3].applicableCycles?.includes(2);
         if (!isCorrect) {
           updatedAny = true;
-          // V5: Remove legacy 'todayStatus' field from patients
-  if (migrationVersion < 5) {
-    currentPatients = currentPatients.map(p => {
-      if ('todayStatus' in p) {
-        updatedAny = true;
-        const { todayStatus: _removed, ...rest } = p;
-        return rest;
-      }
-      return p;
-    });
-    migrationVersion = 5;
-  }
-
-  return {
+          return {
             ...r,
             cycleDays: 28,
             totalCycles: 8,
