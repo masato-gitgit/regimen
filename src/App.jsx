@@ -68,6 +68,7 @@ export default function App() {
     }
 
     let currentPatients = [];
+    let patientsCleaned = false;
     if (storedPatients) {
       try {
         currentPatients = JSON.parse(storedPatients);
@@ -87,7 +88,7 @@ export default function App() {
       ];
       const initialPatientCount = currentPatients.length;
       currentPatients = currentPatients.filter(p => !dummyPatientIds.includes(p.id));
-      var patientsCleaned = currentPatients.length !== initialPatientCount;
+      patientsCleaned = currentPatients.length !== initialPatientCount;
     }
 
     // --- 一元化されたマイグレーションの実行 ---
@@ -96,7 +97,7 @@ export default function App() {
     currentPatients = migrationResult.patients;
     
     // データが更新された場合は保存
-    if (migrationResult.updated || (typeof patientsCleaned !== 'undefined' && patientsCleaned)) {
+    if (migrationResult.updated || patientsCleaned) {
       safeSetLocalStorage('onco_regimens', JSON.stringify(currentRegimens));
       safeSetLocalStorage('onco_patients', JSON.stringify(currentPatients));
       if (migrationResult.updated) {
