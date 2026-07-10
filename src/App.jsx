@@ -32,7 +32,7 @@ export default function App() {
   const [alerts, setAlerts] = useState([]);
   // 最終バックアップ日時
   const [lastBackupTime, setLastBackupTime] = useState(() => {
-    return localStorage.getItem('onco_last_backup_time') || null;
+    return safeGetLocalStorage('onco_last_backup_time') || null;
   });
   // バックアップ警告バナー表示状態
   const [showBackupAlert, setShowBackupAlert] = useState(true);
