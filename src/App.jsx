@@ -14,7 +14,7 @@ import { safeSetLocalStorage, safeGetLocalStorage } from './utils/storageUtils';
 import { useConfirm } from './hooks/useConfirm';
 import { useToast } from './hooks/useToast';
 import { useAppInitialization } from './hooks/useAppInitialization';
-
+import { propagateDrugUpdate } from './utils/drugUtils';
 
 
 
@@ -178,78 +178,12 @@ export default function App() {
     setDrugsMaster(updatedDrugs);
     safeSetLocalStorage('onco_drugs', JSON.stringify(updatedDrugs));
 
-    // レジメンテンプレートマスタの該当薬剤の name, route を同期
-    const updatedRegimens = regimens.map(r => {
-      if (r.drugs) {
-        const updatedRegimenDrugs = r.drugs.map(d => {
-          if (d.drugId === updatedDrug.id) {
-            return {
-              ...d,
-              name: updatedDrug.name,
-              route: updatedDrug.route
-            };
-          }
-          return d;
-        });
-        return { ...r, drugs: updatedRegimenDrugs };
-      }
-      return r;
-    });
+    // 抽出したユーティリティを使用してレジメンと患者データへ伝播
+    const { updatedRegimens, updatedPatients } = propagateDrugUpdate(updatedDrug, regimens, patients);
+    
     setRegimens(updatedRegimens);
     safeSetLocalStorage('onco_regimens', JSON.stringify(updatedRegimens));
 
-    // 患者個別レジメンの該当薬剤の name, route も同期（activeRegimen.drugs + schedule[].drugs 両方）
-    const updatedPatients = patients.map(p => {
-      let changed = false;
-
-      // activeRegimen.drugs の同期
-      let updatedActiveRegimen = p.activeRegimen;
-      if (p.activeRegimen && p.activeRegimen.drugs) {
-        const updatedPatientDrugs = p.activeRegimen.drugs.map(d => {
-          if (d.drugId === updatedDrug.id) {
-            return {
-              ...d,
-              name: updatedDrug.name,
-              route: updatedDrug.route
-            };
-          }
-          return d;
-        });
-        updatedActiveRegimen = {
-          ...p.activeRegimen,
-          drugs: updatedPatientDrugs
-        };
-        changed = true;
-      }
-
-      // schedule[].drugs の同期（過去スケジュール履歴も更新）
-      let updatedSchedule = p.schedule;
-      if (p.schedule && p.schedule.length > 0) {
-        const newSchedule = p.schedule.map(s => {
-          if (!s.drugs) return s;
-          const updatedSDrugs = s.drugs.map(d => {
-            if (d.drugId === updatedDrug.id) {
-              return {
-                ...d,
-                name: updatedDrug.name,
-                route: updatedDrug.route
-              };
-            }
-            return d;
-          });
-          return { ...s, drugs: updatedSDrugs };
-        });
-        updatedSchedule = newSchedule;
-        changed = true;
-      }
-
-      if (!changed) return p;
-      return {
-        ...p,
-        activeRegimen: updatedActiveRegimen,
-        schedule: updatedSchedule
-      };
-    });
     setPatients(updatedPatients);
     safeSetLocalStorage('onco_patients', JSON.stringify(updatedPatients));
   };
