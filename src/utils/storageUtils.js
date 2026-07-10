@@ -16,9 +16,9 @@ export const safeSetLocalStorage = (key, value) => {
   } catch (e) {
     console.error('localStorage write failed:', e);
     if (e.name === 'QuotaExceededError') {
-      window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: 'ブラウザのストレージ容量上限を超過したため、データを保存できませんでした。不要なバックアップや患者データを削除して容量を空けてください。', type: 'error' } })); //、データを保存できませんでした。不要なバックアップや患者データを削除して容量を空けてください。');
+      window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: 'ブラウザのストレージ容量上限を超過したため、データを保存できませんでした。不要なバックアップや患者データを削除して容量を空けてください。', type: 'error' } }));
     } else {
-      window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: 'データの保存中にエラーが発生しました。ブラウザのプライベートモード等の制限がないかご確認ください。', type: 'error' } })); //。ブラウザのプライベートモード等の制限がないかご確認ください。');
+      window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: 'データの保存中にエラーが発生しました。ブラウザのプライベートモード等の制限がないかご確認ください。', type: 'error' } }));
     }
   }
 };
