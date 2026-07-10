@@ -91,16 +91,6 @@ export default function PatientList({
 
 
 
-  const calendarCells = useMemo(() => getCalendarCells(), [currentMonth]);
-
-  // 前月・翌月移動
-  const handlePrevMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-  };
 
   // 患者新規登録
   const handleSavePatient = (e) => {
