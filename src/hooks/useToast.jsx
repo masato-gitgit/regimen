@@ -29,6 +29,13 @@ export const ToastProvider = ({ children }) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // グローバルイベント(app:toast)をリッスンし、外部（例：storageUtils）からでもトーストを呼べるようにする
+  React.useEffect(() => {
+    const handleToastEvent = (e) => toast(e.detail.message, e.detail.type || 'info');
+    window.addEventListener('app:toast', handleToastEvent);
+    return () => window.removeEventListener('app:toast', handleToastEvent);
+  }, [toast]);
+
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}

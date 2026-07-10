@@ -41,12 +41,7 @@ export default function App() {
   // トースト
   const { toast } = useToast();
 
-  // トーストイベントリスナー
-  useEffect(() => {
-    const handleToastEvent = (e) => toast(e.detail.message, e.detail.type || 'info');
-    window.addEventListener('app:toast', handleToastEvent);
-    return () => window.removeEventListener('app:toast', handleToastEvent);
-  }, [toast]);
+
 
   // アラートのリアルタイム計算
   useEffect(() => {
